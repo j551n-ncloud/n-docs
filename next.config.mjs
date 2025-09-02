@@ -21,13 +21,13 @@ const config = {
     ignoreBuildErrors: process.env.NODE_ENV === 'production',
   },
 
-  // Disable dev tools in production
+  // Conditionally enable dev tools (use ENABLE_DEV_TOOLS=true env var)
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    removeConsole: process.env.NODE_ENV === 'production' && !process.env.ENABLE_DEV_TOOLS,
   },
 
-  // Disable source maps in production
-  productionBrowserSourceMaps: false,
+  // Enable source maps when dev tools are enabled
+  productionBrowserSourceMaps: !!process.env.ENABLE_DEV_TOOLS,
 
   // Disable dev indicator
   devIndicators: {

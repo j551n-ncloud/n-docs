@@ -87,26 +87,8 @@ export function detectDevTools() {
       ) {
         if (!devtools.open) {
           devtools.open = true;
-          // Redirect or show warning
-          document.body.innerHTML = `
-            <div style="
-              position: fixed;
-              top: 0;
-              left: 0;
-              width: 100%;
-              height: 100%;
-              background: #000;
-              color: #fff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-family: Arial, sans-serif;
-              font-size: 24px;
-              z-index: 999999;
-            ">
-              Developer tools are disabled in production
-            </div>
-          `;
+          // Block dev tools silently - just clear console
+          console.clear();
         }
       } else {
         devtools.open = false;

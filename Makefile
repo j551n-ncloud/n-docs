@@ -98,9 +98,17 @@ docker-logs: ## Show Docker container logs
 	docker logs -f $(CONTAINER_NAME)
 
 # Docker Compose targets
-compose-up: ## Start with Docker Compose
-	@echo "$(GREEN)[INFO]$(NC) Starting with Docker Compose..."
+compose-up: ## Start with Docker Compose (production)
+	@echo "$(GREEN)[INFO]$(NC) Starting with Docker Compose (production)..."
 	docker compose up -d
+
+compose-dev: ## Start with Docker Compose (development)
+	@echo "$(GREEN)[INFO]$(NC) Starting with Docker Compose (development)..."
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+compose-prod-debug: ## Start production with dev tools enabled
+	@echo "$(GREEN)[INFO]$(NC) Starting production with dev tools enabled..."
+	ENABLE_DEV_TOOLS=true docker compose up -d
 
 compose-up-nginx: ## Start with Docker Compose + Nginx
 	@echo "$(GREEN)[INFO]$(NC) Starting with Docker Compose + Nginx..."

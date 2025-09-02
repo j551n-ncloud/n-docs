@@ -116,55 +116,8 @@ export function DevToolsDisabler() {
       ) {
         if (!devtools.open) {
           devtools.open = true;
-          // Show warning message
-          document.body.innerHTML = `
-            <div style="
-              position: fixed;
-              top: 0;
-              left: 0;
-              width: 100%;
-              height: 100%;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: #fff;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              z-index: 999999;
-              text-align: center;
-              padding: 20px;
-            ">
-              <div style="
-                background: rgba(255, 255, 255, 0.1);
-                backdrop-filter: blur(10px);
-                border-radius: 20px;
-                padding: 40px;
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                max-width: 500px;
-              ">
-                <h1 style="font-size: 2.5rem; margin-bottom: 20px; font-weight: 700;">🔒</h1>
-                <h2 style="font-size: 1.5rem; margin-bottom: 15px; font-weight: 600;">Access Restricted</h2>
-                <p style="font-size: 1rem; opacity: 0.9; line-height: 1.6;">
-                  Developer tools are disabled in production for security reasons.
-                </p>
-                <button onclick="window.location.reload()" style="
-                  margin-top: 20px;
-                  padding: 12px 24px;
-                  background: rgba(255, 255, 255, 0.2);
-                  border: none;
-                  border-radius: 8px;
-                  color: white;
-                  font-size: 1rem;
-                  cursor: pointer;
-                  transition: all 0.3s ease;
-                " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" 
-                   onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
-                  Reload Page
-                </button>
-              </div>
-            </div>
-          `;
+          // Block dev tools silently - just prevent the functionality
+          console.clear();
         }
       } else {
         devtools.open = false;
