@@ -1,0 +1,309 @@
+---
+title: Fumadocs CLI
+description: Using the Fumadocs CLI for enhanced documentation management and components
+---
+
+# Fumadocs CLI
+
+The Fumadocs CLI is a powerful tool for managing and enhancing your documentation site with components, customizations, and file tree generation.
+
+## Installation & Initialization
+
+### Initialize CLI Config
+
+```bash
+# npm
+npx @fumadocs/cli
+
+# pnpm
+pnpm dlx @fumadocs/cli
+
+# yarn
+yarn dlx @fumadocs/cli
+
+# bun
+bunx @fumadocs/cli
+```
+
+This creates a configuration file where you can customize component output paths and other settings.
+
+## Adding Components
+
+### Install Components Interactively
+
+```bash
+# npm
+npx @fumadocs/cli add
+
+# pnpm
+pnpm dlx @fumadocs/cli add
+
+# yarn
+yarn dlx @fumadocs/cli add
+
+# bun
+bunx @fumadocs/cli add
+```
+
+### Install Specific Components
+
+```bash
+# Install banner and files components
+npx @fumadocs/cli add banner files
+
+# Install individual components
+npx @fumadocs/cli add banner
+npx @fumadocs/cli add files
+npx @fumadocs/cli add tabs
+```
+
+### Available Components
+
+Common components you can add:
+- **banner** - Page banners and notifications
+- **files** - File tree visualization
+- **tabs** - Tabbed content sections
+- **cards** - Card layouts for content
+- **callouts** - Highlighted information boxes
+
+## How It Works
+
+The CLI fetches the latest version of components directly from the Fumadocs GitHub repository, ensuring you always get up-to-date components. It also automatically transforms import paths to match your project structure.
+
+> **Note**: Make sure to use the latest version of the CLI for best compatibility.
+
+## Customization
+
+### Customize Layouts
+
+```bash
+# Interactive customization
+npx @fumadocs/cli customise
+```
+
+This provides a simple way to customize Fumadocs layouts without manually editing configuration files.
+
+## File Tree Generation
+
+### Generate File Trees
+
+The CLI can generate file tree components using your actual directory structure:
+
+```bash
+# Generate TypeScript component
+npx @fumadocs/cli tree ./my-dir ./output.tsx
+
+# Generate MDX file
+npx @fumadocs/cli tree ./my-dir ./output.mdx
+
+# Get help for tree command
+npx @fumadocs/cli tree -h
+```
+
+### Example Output
+
+When you run the tree command on a directory, it generates a component like this:
+
+```tsx
+import { File, Folder, Files } from 'fumadocs-ui/components/files';
+
+export default (
+  <Files>
+    <Folder name="app">
+      <File name="layout.tsx" />
+      <File name="page.tsx" />
+      <File name="global.css" />
+    </Folder>
+    <Folder name="components">
+      <File name="button.tsx" />
+      <File name="tabs.tsx" />
+      <File name="dialog.tsx" />
+    </Folder>
+    <File name="package.json" />
+  </Files>
+);
+```
+
+## Practical Examples
+
+### Adding a Banner Component
+
+1. **Install the banner component**:
+   ```bash
+   npx @fumadocs/cli add banner
+   ```
+
+2. **Use in your documentation**:
+   ```mdx
+   import { Banner } from '@/components/ui/banner';
+   
+   <Banner type="warning">
+     This feature is in beta. Use with caution in production.
+   </Banner>
+   ```
+
+### Creating File Trees for Documentation
+
+1. **Generate a file tree for your project structure**:
+   ```bash
+   npx @fumadocs/cli tree ./src ./components/project-structure.tsx
+   ```
+
+2. **Include in your documentation**:
+   ```mdx
+   import ProjectStructure from '@/components/project-structure';
+   
+   ## Project Structure
+   
+   <ProjectStructure />
+   ```
+
+### Documenting Docker Project Structure
+
+```bash
+# Generate file tree for a Docker project
+npx @fumadocs/cli tree ./docker-project ./components/docker-structure.mdx
+```
+
+This might generate:
+
+```mdx
+import { File, Folder, Files } from 'fumadocs-ui/components/files';
+
+<Files>
+  <Folder name="docker-project">
+    <File name="Dockerfile" />
+    <File name="docker-compose.yml" />
+    <File name="docker-compose.prod.yml" />
+    <Folder name="nginx">
+      <File name="nginx.conf" />
+      <File name="Dockerfile" />
+    </Folder>
+    <Folder name="app">
+      <File name="package.json" />
+      <File name="server.js" />
+    </Folder>
+    <File name=".dockerignore" />
+  </Folder>
+</Files>
+```
+
+## Integration with N-Docs
+
+### Enhancing Documentation Pages
+
+You can use the CLI to add components that enhance your existing documentation:
+
+1. **Add file trees to show project structures**
+2. **Add banners for important notices**
+3. **Add tabs for multi-language examples**
+4. **Add cards for feature showcases**
+
+### Example: Enhanced Docker Documentation
+
+```mdx
+---
+title: Docker Project Structure
+---
+
+import { Banner } from '@/components/ui/banner';
+import { Files, File, Folder } from 'fumadocs-ui/components/files';
+
+# Docker Project Structure
+
+<Banner type="info">
+  This guide shows recommended Docker project organization.
+</Banner>
+
+## Recommended Structure
+
+<Files>
+  <Folder name="my-docker-app">
+    <File name="Dockerfile" />
+    <File name="docker-compose.yml" />
+    <File name="docker-compose.prod.yml" />
+    <File name=".dockerignore" />
+    <Folder name="src">
+      <File name="app.js" />
+      <File name="package.json" />
+    </Folder>
+    <Folder name="nginx">
+      <File name="nginx.conf" />
+      <File name="Dockerfile" />
+    </Folder>
+    <Folder name="scripts">
+      <File name="deploy.sh" />
+      <File name="backup.sh" />
+    </Folder>
+  </Folder>
+</Files>
+```
+
+## Best Practices
+
+### 1. Keep Components Updated
+
+```bash
+# Regularly update CLI to get latest components
+npm update @fumadocs/cli -g
+```
+
+### 2. Use File Trees for Complex Structures
+
+File trees are particularly useful for:
+- Project structure documentation
+- Configuration file organization
+- API endpoint documentation
+- Directory layout explanations
+
+### 3. Combine with Existing Content
+
+Use CLI components to enhance existing documentation rather than replace it:
+
+```mdx
+## Installation Steps
+
+1. Clone the repository
+2. Set up the project structure:
+
+<Files>
+  <Folder name="project">
+    <File name="package.json" />
+    <File name="src/" />
+    <File name="docs/" />
+  </Folder>
+</Files>
+
+3. Install dependencies
+```
+
+## CLI Commands Reference
+
+```bash
+# Initialize configuration
+npx @fumadocs/cli
+
+# Add components interactively
+npx @fumadocs/cli add
+
+# Add specific components
+npx @fumadocs/cli add [component-names...]
+
+# Customize layouts
+npx @fumadocs/cli customise
+
+# Generate file tree
+npx @fumadocs/cli tree [input-dir] [output-file]
+
+# Get help
+npx @fumadocs/cli --help
+npx @fumadocs/cli tree --help
+```
+
+## What's Next?
+
+- Explore available components in the [Fumadocs UI documentation](https://fumadocs.vercel.app/docs/ui)
+- Check out [component examples](https://fumadocs.vercel.app/docs/ui/components) for inspiration
+- Learn about [customization options](https://fumadocs.vercel.app/docs/ui/theme) for your documentation theme
+
+The Fumadocs CLI makes it easy to keep your documentation visually appealing and well-organized with minimal effort!

@@ -1,6 +1,8 @@
 {
   "title": "Docker",
   "pages": [
-    "index"
+    "index",
+    "dockerfile-guide",
+    "compose-guide"
   ]
 }

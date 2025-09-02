@@ -1,21 +1,410 @@
 ---
-title: Docker
-description: Docker containerization setup and management
+title: Docker Guide
+description: Complete beginner-friendly guide to Docker installation, commands, and containerization
 ---
 
-# Docker Documentation
+# Docker Complete Guide
 
-Learn how to set up and manage Docker containers in your homelab environment.
+## Why Docker?
 
-## Topics Covered
+Docker is a platform for containerization, which means packaging an application and all its dependencies into a single, portable container.
 
-- Docker installation and setup
-- Docker Compose configurations
-- Container networking
-- Volume management
-- Security best practices
-- Monitoring and logging
+### Benefits of Docker
 
-## Quick Start
+- **Consistency**: Works the same on any system (dev, test, production)
+- **Isolation**: Each app runs in its own container without affecting others
+- **Lightweight**: Containers share the OS kernel; they are faster and smaller than virtual machines
+- **Scalability**: Easy to deploy multiple containers for microservices
+- **Portability**: Containers can run on any OS that supports Docker
 
-Coming soon - Docker setup guides and example configurations.
+## Installing Docker
+
+### On Windows
+
+1. Download Docker Desktop from [Docker's official website](https://www.docker.com/products/docker-desktop)
+2. Run the installer
+3. After installation, enable WSL 2 (Windows Subsystem for Linux) if prompted
+4. Verify installation:
+
+```bash
+docker --version
+docker compose version
+```
+
+### On macOS
+
+1. Download Docker Desktop for Mac from [Docker's official website](https://www.docker.com/products/docker-desktop)
+2. Open the .dmg file and drag Docker to Applications
+3. Launch Docker and verify:
+
+```bash
+docker --version
+docker compose version
+```
+
+### On Linux (Ubuntu example)
+
+1. **Update your packages**:
+   ```bash
+   sudo apt update
+   sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+   ```
+
+2. **Add Docker's GPG key and repository**:
+   ```bash
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+   
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   ```
+
+3. **Install Docker**:
+   ```bash
+   sudo apt update
+   sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+   ```
+
+4. **Start and enable Docker**:
+   ```bash
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   ```
+
+5. **Verify installation**:
+   ```bash
+   docker --version
+   docker compose version
+   ```
+
+6. **Optional: Add your user to the Docker group** (so you don't need sudo):
+   ```bash
+   sudo usermod -aG docker $USER
+   newgrp docker
+   ```
+
+## Basic Docker Commands
+
+### Images
+
+**List images**:
+```bash
+docker images
+```
+
+**Pull an image from Docker Hub**:
+```bash
+docker pull ubuntu
+```
+
+**Remove an image**:
+```bash
+docker rmi ubuntu
+```
+
+**Search for images**:
+```bash
+docker search nginx
+```
+
+**Build an image from Dockerfile**:
+```bash
+docker build -t myapp:latest .
+```
+
+### Containers
+
+**Run a container**:
+```bash
+docker run -it ubuntu
+# -it = interactive terminal
+```
+
+**Run container in background**:
+```bash
+docker run -d nginx
+# -d = detached (runs in background)
+```
+
+**Run with port mapping**:
+```bash
+docker run -d -p 8080:80 nginx
+# -p = map host port to container port
+```
+
+**List running containers**:
+```bash
+docker ps
+```
+
+**List all containers** (including stopped):
+```bash
+docker ps -a
+```
+
+**Stop a container**:
+```bash
+docker stop <container_id>
+```
+
+**Start a stopped container**:
+```bash
+docker start <container_id>
+```
+
+**Remove a container**:
+```bash
+docker rm <container_id>
+```
+
+**Remove all stopped containers**:
+```bash
+docker container prune
+```
+
+### Other Useful Commands
+
+**Check Docker system info**:
+```bash
+docker info
+```
+
+**View container logs**:
+```bash
+docker logs <container_id>
+```
+
+**Follow logs in real-time**:
+```bash
+docker logs -f <container_id>
+```
+
+**Execute a command inside a running container**:
+```bash
+docker exec -it <container_id> bash
+```
+
+**Copy files between host and container**:
+```bash
+# From host to container
+docker cp file.txt <container_id>:/path/to/destination
+
+# From container to host
+docker cp <container_id>:/path/to/file.txt ./
+```
+
+**Inspect container details**:
+```bash
+docker inspect <container_id>
+```
+
+**View resource usage**:
+```bash
+docker stats
+```
+
+## Docker Compose Basics
+
+Docker Compose allows you to define and run multi-container applications using a YAML file.
+
+### Basic docker-compose.yml
+
+```yaml
+version: '3.8'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
+  
+  database:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: myapp
+    volumes:
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
+```
+
+### Docker Compose Commands
+
+**Start services**:
+```bash
+docker compose up
+```
+
+**Start in background**:
+```bash
+docker compose up -d
+```
+
+**Stop services**:
+```bash
+docker compose down
+```
+
+**View logs**:
+```bash
+docker compose logs
+```
+
+**Build and start**:
+```bash
+docker compose up --build
+```
+
+## Summary Workflow Example
+
+1. **Pull an image**:
+   ```bash
+   docker pull nginx
+   ```
+
+2. **Run a container**:
+   ```bash
+   docker run -d -p 8080:80 nginx
+   # -d = detached (runs in background)
+   # -p = map host port to container port
+   ```
+
+3. **Visit** `http://localhost:8080` to see the running Nginx server
+
+4. **Check running containers**:
+   ```bash
+   docker ps
+   ```
+
+5. **Stop the container**:
+   ```bash
+   docker stop <container_id>
+   ```
+
+## Docker Best Practices
+
+### Security
+- Don't run containers as root when possible
+- Use official images from trusted sources
+- Keep images updated
+- Scan images for vulnerabilities
+
+### Performance
+- Use multi-stage builds to reduce image size
+- Minimize the number of layers
+- Use .dockerignore to exclude unnecessary files
+- Choose appropriate base images (alpine for smaller size)
+
+### Development
+- Use volumes for persistent data
+- Use environment variables for configuration
+- Tag your images properly
+- Use docker-compose for multi-container applications
+
+## Common Docker Patterns
+
+### Web Application with Database
+
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/myapp
+  
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: myapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+
+### Development Environment
+
+```yaml
+version: '3.8'
+services:
+  dev:
+    build: .
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Permission denied**:
+```bash
+# Add user to docker group
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
+**Port already in use**:
+```bash
+# Find what's using the port
+sudo lsof -i :8080
+# Or use a different port
+docker run -p 8081:80 nginx
+```
+
+**Container won't start**:
+```bash
+# Check logs
+docker logs <container_id>
+# Check container details
+docker inspect <container_id>
+```
+
+**Out of disk space**:
+```bash
+# Clean up unused containers, networks, images
+docker system prune
+# Remove unused volumes too
+docker system prune --volumes
+```
+
+## What's Next?
+
+Master Docker with these progressive steps:
+
+### Learning Timeline - Docker Mastery
+
+1. ✅ **Installation & Basic Commands** - Run your first containers
+2. ✅ **Images & Containers** - Understand the Docker workflow
+3. ⏳ **Next**: Create custom Dockerfiles
+4. ⏳ **Then**: Multi-container apps with Docker Compose
+5. ⏳ **Advanced**: Docker networking and volumes
+6. ⏳ **Expert**: Docker Swarm and Kubernetes integration
+
+### Skill Progression
+
+- **Beginner**: Run existing containers, basic commands
+- **Intermediate**: Write Dockerfiles, use Docker Compose
+- **Advanced**: Multi-stage builds, networking, security
+- **Expert**: Orchestration, CI/CD integration, production deployment
+
+## Related Documentation
+
+- [Kubernetes Setup](/docs/documentation/kubernetes) - Container orchestration
+- [Proxmox Containers](/docs/documentation/proxmox) - LXC vs Docker containers
+- [Deployment Scripts](/docs/scripts) - Automation for Docker deployments

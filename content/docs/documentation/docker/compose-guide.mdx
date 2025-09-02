@@ -1,0 +1,690 @@
+---
+title: "Docker Compose Guide"
+description: "Complete guide to Docker Compose for multi-container applications"
+---
+
+# Docker Compose Guide
+
+## What is Docker Compose?
+
+Docker Compose is a tool for defining and running multi-container Docker applications. With Compose, you use a YAML file to configure your application's services, networks, and volumes.
+
+## Installation
+
+Docker Compose comes bundled with Docker Desktop. For Linux installations:
+
+```bash
+# Check if already installed
+docker compose version
+
+# If not installed, it should be included with Docker Engine
+# For older versions, you might need docker-compose (with hyphen)
+docker-compose --version
+```
+
+## Basic docker-compose.yml Structure
+
+```yaml
+version: '3.8'
+
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
+    depends_on:
+      - api
+    networks:
+      - frontend
+
+  api:
+    build: ./api
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/myapp
+    depends_on:
+      - db
+    networks:
+      - frontend
+      - backend
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: myapp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  frontend:
+  backend:
+```
+
+## Core Concepts
+
+### Services
+Services define the containers that make up your application.
+
+```yaml
+services:
+  web:
+    image: nginx:alpine
+    # or
+    build: ./web-app
+```
+
+### Networks
+Networks allow services to communicate with each other.
+
+```yaml
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: true  # No external access
+```
+
+### Volumes
+Volumes provide persistent data storage.
+
+```yaml
+volumes:
+  postgres_data:
+    driver: local
+  app_data:
+    external: true  # Use existing volume
+```
+
+## Service Configuration Options
+
+### Image vs Build
+
+```yaml
+services:
+  # Use existing image
+  web:
+    image: nginx:alpine
+  
+  # Build from Dockerfile
+  api:
+    build: .
+    # or with context and dockerfile
+    build:
+      context: ./api
+      dockerfile: Dockerfile.prod
+      args:
+        - NODE_ENV=production
+```
+
+### Ports
+
+```yaml
+services:
+  web:
+    ports:
+      - "8080:80"        # host:container
+      - "443:443"
+      - "127.0.0.1:3000:3000"  # bind to specific interface
+```
+
+### Environment Variables
+
+```yaml
+services:
+  app:
+    environment:
+      - NODE_ENV=production
+      - DEBUG=false
+    # or
+    environment:
+      NODE_ENV: production
+      DEBUG: "false"
+    # or from file
+    env_file:
+      - .env
+      - .env.production
+```
+
+### Volumes
+
+```yaml
+services:
+  app:
+    volumes:
+      - ./src:/app/src          # bind mount
+      - node_modules:/app/node_modules  # named volume
+      - /tmp:/tmp:ro            # read-only mount
+      - type: bind
+        source: ./data
+        target: /app/data
+        read_only: true
+```
+
+### Dependencies
+
+```yaml
+services:
+  web:
+    depends_on:
+      - api
+      - db
+    # or with conditions (requires healthchecks)
+    depends_on:
+      db:
+        condition: service_healthy
+```
+
+### Health Checks
+
+```yaml
+services:
+  web:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+### Restart Policies
+
+```yaml
+services:
+  app:
+    restart: unless-stopped
+    # Options: no, always, on-failure, unless-stopped
+```
+
+## Common Commands
+
+### Basic Operations
+
+```bash
+# Start services
+docker compose up
+
+# Start in background (detached)
+docker compose up -d
+
+# Start specific services
+docker compose up web db
+
+# Stop services
+docker compose down
+
+# Stop and remove volumes
+docker compose down -v
+
+# Stop and remove images
+docker compose down --rmi all
+```
+
+### Building and Rebuilding
+
+```bash
+# Build services
+docker compose build
+
+# Build without cache
+docker compose build --no-cache
+
+# Build and start
+docker compose up --build
+
+# Rebuild specific service
+docker compose build web
+```
+
+### Logs and Monitoring
+
+```bash
+# View logs
+docker compose logs
+
+# Follow logs
+docker compose logs -f
+
+# Logs for specific service
+docker compose logs web
+
+# View running services
+docker compose ps
+
+# View resource usage
+docker compose top
+```
+
+### Scaling Services
+
+```bash
+# Scale a service
+docker compose up --scale web=3
+
+# Scale multiple services
+docker compose up --scale web=3 --scale worker=2
+```
+
+## Real-World Examples
+
+### LAMP Stack
+
+```yaml
+version: '3.8'
+
+services:
+  web:
+    image: httpd:2.4
+    ports:
+      - "80:80"
+    volumes:
+      - ./html:/usr/local/apache2/htdocs
+      - ./httpd.conf:/usr/local/apache2/conf/httpd.conf
+    depends_on:
+      - php
+
+  php:
+    image: php:8.1-fpm
+    volumes:
+      - ./html:/var/www/html
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: webapp
+      MYSQL_USER: webuser
+      MYSQL_PASSWORD: webpassword
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+volumes:
+  mysql_data:
+```
+
+### Node.js + MongoDB + Redis
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/myapp
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongo
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - app
+
+volumes:
+  mongo_data:
+  redis_data:
+```
+
+### WordPress with MySQL
+
+```yaml
+version: '3.8'
+
+services:
+  wordpress:
+    image: wordpress:latest
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - db_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: rootpassword
+    depends_on:
+      - db
+
+volumes:
+  wordpress_data:
+  db_data:
+```
+
+### Development Environment
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debugger
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true  # For file watching in containers
+    volumes:
+      - .:/app
+      - /app/node_modules  # Anonymous volume for node_modules
+    command: npm run dev
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: myapp_dev
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  mailhog:  # Email testing
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+
+volumes:
+  postgres_dev_data:
+```
+
+## Advanced Features
+
+### Override Files
+
+Create `docker-compose.override.yml` for local development:
+
+```yaml
+# docker-compose.override.yml
+version: '3.8'
+
+services:
+  app:
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=true
+    command: npm run dev
+```
+
+### Multiple Compose Files
+
+```bash
+# Use multiple compose files
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+# Production override
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+### Profiles
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    image: myapp
+    
+  db:
+    image: postgres:15
+    
+  test:
+    image: myapp
+    profiles: ["testing"]
+    command: npm test
+    
+  debug:
+    image: myapp
+    profiles: ["debug"]
+    command: npm run debug
+```
+
+```bash
+# Run with specific profile
+docker compose --profile testing up
+
+# Run multiple profiles
+docker compose --profile testing --profile debug up
+```
+
+### Secrets (Docker Swarm)
+
+```yaml
+version: '3.8'
+
+services:
+  app:
+    image: myapp
+    secrets:
+      - db_password
+      - api_key
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  api_key:
+    external: true
+```
+
+## Best Practices
+
+### 1. Use Environment-Specific Files
+
+```bash
+# Development
+docker-compose.yml
+docker-compose.override.yml
+
+# Production
+docker-compose.yml
+docker-compose.prod.yml
+
+# Testing
+docker-compose.yml
+docker-compose.test.yml
+```
+
+### 2. Use .env Files
+
+```bash
+# .env file
+POSTGRES_USER=myuser
+POSTGRES_PASSWORD=mypassword
+POSTGRES_DB=myapp
+APP_PORT=3000
+```
+
+```yaml
+# docker-compose.yml
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+  
+  app:
+    ports:
+      - "${APP_PORT}:3000"
+```
+
+### 3. Health Checks and Dependencies
+
+```yaml
+services:
+  db:
+    image: postgres:15
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    depends_on:
+      db:
+        condition: service_healthy
+```
+
+### 4. Resource Limits
+
+```yaml
+services:
+  app:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Services can't communicate**:
+```bash
+# Check networks
+docker compose ps
+docker network ls
+
+# Inspect network
+docker network inspect <network_name>
+```
+
+**Port conflicts**:
+```bash
+# Check what's using the port
+sudo lsof -i :8080
+
+# Use different port
+ports:
+  - "8081:80"
+```
+
+**Volume permission issues**:
+```yaml
+services:
+  app:
+    user: "${UID}:${GID}"  # Use host user ID
+    volumes:
+      - ./data:/app/data
+```
+
+**Service won't start**:
+```bash
+# Check logs
+docker compose logs service_name
+
+# Check service status
+docker compose ps
+
+# Restart specific service
+docker compose restart service_name
+```
+
+### Debugging Commands
+
+```bash
+# Validate compose file
+docker compose config
+
+# Dry run
+docker compose up --dry-run
+
+# Execute command in running service
+docker compose exec web bash
+
+# Run one-off command
+docker compose run --rm app npm test
+```
+
+## What's Next?
+
+- [Docker Networking](/docs/documentation/docker) - Advanced networking concepts
+- [Kubernetes](/docs/documentation/kubernetes) - Container orchestration at scale
+- [CI/CD Integration](/docs/scripts) - Automated deployment with Docker Compose

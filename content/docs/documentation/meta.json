@@ -4,6 +4,7 @@
   "root": true,
   "pages": [
     "index",
+    "fumadocs-cli",
     "proxmox",
     "docker",
     "kubernetes",

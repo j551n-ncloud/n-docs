@@ -1,13 +1,15 @@
 ---
 title: EasyBuild Modules Compiling
-description: Complete guide to EasyBuild recipe commands and module compilation
+description: Complete guide to EasyBuild recipe commands, module compilation, and checksum management
 ---
 
-# EasyBuild Recipe Commands Reference
+# EasyBuild Modules Compiling
 
 ## Overview
 
-EasyBuild Modules Compiling automates the process of installing scientific software modules on computing clusters or systems. It simplifies complex software builds and installations, providing a unified and automated approach.
+EasyBuild automates the installation of scientific software modules on computing clusters. It simplifies complex builds, ensures reproducibility, and manages dependencies automatically.
+
+This guide provides commands, workflow examples, recipe structures, and checksum management.
 
 ## Basic Build Commands
 
@@ -15,7 +17,7 @@ EasyBuild Modules Compiling automates the process of installing scientific softw
 # Build a recipe
 eb MySoftware-1.0.0-foss-2023a.eb
 
-# Build with dependencies using robot mode
+# Build with dependencies (Robot mode)
 eb MySoftware-1.0.0-foss-2023a.eb --robot
 
 # Robot mode with current directory as search path
@@ -24,29 +26,30 @@ eb -r . MySoftware-1.0.0-foss-2023a.eb
 # Build ignoring checksums (use with caution)
 eb -r . --ignore-checksums path/MySoftware-1.0.0-foss-2023a.eb
 
-# Dry run (show what would be built)
+# Dry run
 eb MySoftware-1.0.0-foss-2023a.eb --dry-run
 
 # Build multiple recipes
 eb *.eb --robot
 ```
 
-## How to Run EasyBuild Module Compiling
+## Running EasyBuild Modules
 
 ### 1. Select Software
-Choose the software package you want to install. For example, "GROMACS".
+
+Example: `GROMACS`.
 
 ### 2. Build the Module
-Use the `eb` command with robot mode (`-r`) and dependency search path (`.`):
+
 ```bash
 eb -r . path/GROMACS-2023.1-foss-2023a.eb
 ```
 
-The dot (`.`) is the starting search path for dependency modules.
-The `-r` stands for Robot mode - it searches for dependencies starting from the search path.
+* `.` = starting search path for dependencies
+* `-r` = Robot mode
 
-### 3. Load the Module
-After the module is built, load it into your environment:
+### 3. Load Module
+
 ```bash
 module load GROMACS/2023.1-foss-2023a
 ```
@@ -72,6 +75,26 @@ eb --search MySoftware
 # Find recipe files
 find $EASYBUILD_CONFIGFILES -name "*MySoftware*"
 ```
+
+## Checksums (Verify Source Integrity)
+
+### 1. Generate Checksums Automatically
+
+```bash
+eb MySoftware-1.0.0-foss-2023a.eb --generate-checksums
+```
+
+* Calculates MD5, SHA1, and SHA256 for sources.
+* Copy the SHA256 (recommended) to the `checksums` field.
+
+### 2. Add Checksums to Recipe
+
+```python
+sources = ['v%(version)s.tar.gz']
+checksums = ['d2c7e8b2c4e5f0e5f5e5d5b8f0a7d2b8f0c7e5d5b2c7d2c7e5d5b8f0a7d2b8f0']
+```
+
+✅ Always include checksums for reproducibility and security.
 
 ## Debugging Commands
 
@@ -123,6 +146,78 @@ eb MySoftware-1.0.0-foss-2023a.eb --robot --dry-run
 eb MySoftware-1.0.0-foss-2023a.eb --robot --stop=ready
 ```
 
+## Validation Commands
+
+```bash
+# Recipe syntax
+eb MySoftware-1.0.0-foss-2023a.eb --check-syntax
+
+# Validate checksums
+eb MySoftware-1.0.0-foss-2023a.eb --check-checksums
+
+# Check for conflicts
+eb MySoftware-1.0.0-foss-2023a.eb --check-conflicts
+```
+
+## Information Commands
+
+```bash
+# Show recipe details
+eb MySoftware-1.0.0-foss-2023a.eb --show-config
+
+# List toolchains
+eb --list-toolchains
+
+# List easyblocks
+eb --list-easyblocks
+
+# Show software list
+eb --software-list | grep -i mysoftware
+```
+
+## Build Path Management
+
+```bash
+# Use temporary build directory
+eb MySoftware-1.0.0-foss-2023a.eb --tmpdir=/tmp/eb_build
+
+# Specify build directory
+eb MySoftware-1.0.0-foss-2023a.eb --buildpath=/scratch/build
+
+# Clean build directory after success
+eb MySoftware-1.0.0-foss-2023a.eb --cleanup-builddir
+```
+
+## Advanced Commands
+
+```bash
+# Use specific Python/toolchain version
+eb MySoftware-1.0.0-foss-2023a.eb --try-toolchain=GCC,12.3.0
+
+# Update toolchain
+eb MySoftware-1.0.0-foss-2023a.eb --try-update-deps
+
+# Different installation path
+eb MySoftware-1.0.0-foss-2023a.eb --installpath=/opt/software
+
+# Parallel builds
+eb MySoftware-1.0.0-foss-2023a.eb --parallel=8
+```
+
+## Environment Setup
+
+```bash
+# EasyBuild paths
+export EASYBUILD_CONFIGFILES=/path/to/config
+export EASYBUILD_BUILDPATH=/tmp/easybuild
+export EASYBUILD_INSTALLPATH=/opt/easybuild
+export EASYBUILD_SOURCEPATH=/opt/easybuild/sources
+
+# Module environment
+module use /opt/easybuild/modules/all
+module load EasyBuild
+```
+
 ## Recipe Example Structure
 
 ### Basic EasyBuild Recipe (.eb file)
@@ -161,6 +256,38 @@ sanity_check_paths = {
 moduleclass = 'tools'
 ```
 
+### CMake Recipe
+
+```python
+easyblock = 'CMakeMake'
+name = 'MySoftware'
+version = '1.0.0'
+toolchain = {'name': 'foss', 'version': '2023a'}
+source_urls = ['https://github.com/user/repo/archive/']
+sources = ['v%(version)s.tar.gz']
+checksums = ['sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']
+configopts = '-DCMAKE_BUILD_TYPE=Release'
+sanity_check_paths = {'files': ['bin/mysoftware'], 'dirs': []}
+moduleclass = 'tools'
+```
+
+### Python Package Recipe
+
+```python
+easyblock = 'PythonPackage'
+name = 'MySoftware'
+version = '1.0.0'
+toolchain = {'name': 'foss', 'version': '2023a'}
+source_urls = [PYPI_SOURCE]
+sources = [SOURCELOWER_TAR_GZ]
+checksums = ['sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']
+dependencies = [('Python', '3.11.3')]
+use_pip = True
+download_dep_fail = True
+sanity_pip_check = True
+moduleclass = 'tools'
+```
+
 ### EasyBlock Types
 The `easyblock` variable specifies the build method:
 - `AutotoolsMake` - For Autotools-based packages
@@ -178,16 +305,19 @@ eb --new-recipe MySoftware 1.0.0
 # 2. Edit recipe file
 vim MySoftware-1.0.0-foss-2023a.eb
 
-# 3. Test syntax
+# 3. Check syntax
 eb MySoftware-1.0.0-foss-2023a.eb --check-syntax
 
-# 4. Dry run
+# 4. Generate checksums
+eb MySoftware-1.0.0-foss-2023a.eb --generate-checksums
+
+# 5. Dry run
 eb MySoftware-1.0.0-foss-2023a.eb --dry-run --robot
 
-# 5. Build
+# 6. Build
 eb MySoftware-1.0.0-foss-2023a.eb --robot
 
-# 6. Test installation
+# 7. Test installation
 eb MySoftware-1.0.0-foss-2023a.eb --sanity-check-only
 ```
 

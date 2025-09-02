@@ -1,0 +1,781 @@
+---
+title: Enhanced Music Downloader Script
+description: Bash script that combines Spotify (spotdl) and YouTube (yt-dlp) downloading capabilities with advanced features
+---
+
+# Enhanced Music Downloader Script
+
+A comprehensive bash script that combines Spotify and YouTube downloading capabilities with advanced features like metadata embedding, playlist generation, and quality selection.
+
+## Features
+
+- **Spotify Integration**: Download playlists, albums, and tracks using spotdl
+- **YouTube Support**: Download individual tracks and entire playlists
+- **Search Functionality**: Search YouTube and select tracks to download
+- **Quality Options**: Choose from MP3, M4A, OPUS, or FLAC formats
+- **Metadata Handling**: Automatic metadata and thumbnail embedding
+- **Lyrics Support**: Download and embed lyrics into MP3 files
+- **Playlist Generation**: Create M3U playlists automatically
+- **Batch Operations**: Streamlined workflows for common tasks
+
+## Dependencies
+
+The script automatically checks and attempts to install required dependencies:
+
+### Required
+- `yt-dlp` - YouTube downloader
+- `ffmpeg` - Audio processing
+
+### Optional
+- `spotdl` - Spotify downloading (enables Spotify features)
+- `eyeD3` - Enhanced metadata and lyrics embedding
+
+## Installation
+
+```bash
+# Install core dependencies
+pip install yt-dlp
+
+# For Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# For macOS
+brew install ffmpeg
+
+# Optional: Spotify support
+pip install spotdl
+
+# Optional: Enhanced metadata support
+pip install eyed3
+```
+
+## Script Code
+
+```bash
+#!/bin/bash
+
+# Enhanced Music Downloader Script
+# Combines Spotify (spotdl) and YouTube (yt-dlp) downloading capabilities
+
+# --- Color definitions ---
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# --- Configuration ---
+CONFIG_FILE="${HOME}/.config/n-music/config"
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+else
+    # Default base path if not configured
+    BASE_PATH="${BASE_PATH:-${HOME}/Music}"
+fi
+
+# Global variable for selected directory
+SELECTED_DIR=""
+
+# --- Dependency checking ---
+check_dependencies() {
+    echo -e "${YELLOW}Checking for required dependencies...${NC}"
+    
+    local missing_deps=()
+    
+    # Check for yt-dlp
+    if ! command -v yt-dlp &> /dev/null; then
+        missing_deps+=("yt-dlp")
+    fi
+    
+    # Check for ffmpeg
+    if ! command -v ffmpeg &> /dev/null; then
+        missing_deps+=("ffmpeg")
+    fi
+    
+    # Check for spotdl (optional)
+    if ! command -v spotdl &> /dev/null; then
+        echo -e "${YELLOW}spotdl not found - Spotify features will be disabled${NC}"
+    fi
+    
+    # Check for eyeD3 (optional)
+    if ! command -v eyeD3 &> /dev/null; then
+        echo -e "${YELLOW}eyeD3 not found - some metadata features will be limited${NC}"
+    fi
+    
+    # Install missing critical dependencies
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo -e "${RED}Missing critical dependencies: ${missing_deps[*]}${NC}"
+        echo -e "${YELLOW}Attempting to install...${NC}"
+        
+        for dep in "${missing_deps[@]}"; do
+            case "$dep" in
+                "yt-dlp")
+                    if command -v pip3 &> /dev/null; then
+                        pip3 install --break-system-packages yt-dlp
+                    elif command -v pip &> /dev/null; then
+                        pip install --break-system-packages yt-dlp
+                    elif command -v apt-get &> /dev/null; then
+                        sudo apt-get update && sudo apt-get install -y python3-pip
+                        pip3 install --break-system-packages yt-dlp
+                    elif command -v brew &> /dev/null; then
+                        brew install yt-dlp
+                    else
+                        echo -e "${RED}Could not install yt-dlp. Please install manually.${NC}"
+                        exit 1
+                    fi
+                    ;;
+                "ffmpeg")
+                    if command -v apt-get &> /dev/null; then
+                        sudo apt-get update && sudo apt-get install -y ffmpeg
+                    elif command -v brew &> /dev/null; then
+                        brew install ffmpeg
+                    else
+                        echo -e "${RED}Could not install ffmpeg. Please install manually.${NC}"
+                        exit 1
+                    fi
+                    ;;
+            esac
+        done
+    fi
+    
+    echo -e "${GREEN}Dependencies check complete.${NC}"
+}
+
+# --- Directory selection function ---
+select_directory() {
+    echo -e "${CYAN}Music directory: $BASE_PATH${NC}"
+    
+    # Create BASE_PATH if it doesn't exist
+    if [ ! -d "$BASE_PATH" ]; then
+        echo "Creating base directory: '$BASE_PATH'"
+        mkdir -p "$BASE_PATH"
+    fi
+    
+    # Get subdirectories
+    mapfile -t folders < <(find "$BASE_PATH" -maxdepth 1 -type d ! -path "$BASE_PATH" -exec basename {} \; | sort)
+    
+    if [ ${#folders[@]} -eq 0 ]; then
+        echo "No subdirectories found."
+        read -p "Enter directory name to create: " dir_name
+        SELECTED_DIR="$BASE_PATH/$dir_name"
+        mkdir -p "$SELECTED_DIR"
+        echo -e "${GREEN}Created: '$SELECTED_DIR'${NC}"
+        return
+    fi
+    
+    echo "Available directories:"
+    echo "-------------------------------------------"
+    for i in "${!folders[@]}"; do
+        echo "$((i+1))) ${folders[$i]}"
+    done
+    echo "$((${#folders[@]}+1))) Create new directory"
+    echo "$((${#folders[@]}+2))) Use base directory"
+    
+    read -p "Select directory [1-$((${#folders[@]}+2))]: " selection
+    
+    if [ "$selection" -eq "$((${#folders[@]}+1))" ]; then
+        read -p "Enter new directory name: " dir_name
+        SELECTED_DIR="$BASE_PATH/$dir_name"
+        mkdir -p "$SELECTED_DIR"
+        echo -e "${GREEN}Created: '$SELECTED_DIR'${NC}"
+    elif [ "$selection" -eq "$((${#folders[@]}+2))" ]; then
+        SELECTED_DIR="$BASE_PATH"
+        echo -e "${GREEN}Using base directory: '$SELECTED_DIR'${NC}"
+    elif [ "$selection" -ge 1 ] && [ "$selection" -le "${#folders[@]}" ]; then
+        SELECTED_DIR="$BASE_PATH/${folders[$((selection-1))]}"
+        echo -e "${GREEN}Selected: '$SELECTED_DIR'${NC}"
+    else
+        echo -e "${RED}Invalid selection. Using base directory.${NC}"
+        SELECTED_DIR="$BASE_PATH"
+    fi
+}
+
+# --- Audio format and quality selection ---
+select_audio_options() {
+    echo "Choose audio format:"
+    echo "1) MP3 (most compatible)"
+    echo "2) M4A (AAC - good quality)"
+    echo "3) OPUS (best compression)"
+    echo "4) FLAC (lossless)"
+    read -p "Select format [1-4] (default: 1): " format_choice
+    
+    case "$format_choice" in
+        2) FORMAT="m4a" ;;
+        3) FORMAT="opus" ;;
+        4) FORMAT="flac" ;;
+        *) FORMAT="mp3" ;;
+    esac
+    
+    echo "Choose audio quality:"
+    echo "1) Best available (recommended)"
+    echo "2) Force 320kbps (upscales if needed)"
+    echo "3) Medium (192kbps)"
+    echo "4) Low (128kbps)"
+    read -p "Select quality [1-4] (default: 1): " quality_choice
+    
+    case "$quality_choice" in
+        2) QUALITY="320K"; FORCE_QUALITY=true ;;
+        3) QUALITY="192K"; FORCE_QUALITY=true ;;
+        4) QUALITY="128K"; FORCE_QUALITY=true ;;
+        *) QUALITY="0"; FORCE_QUALITY=false ;; # Best
+    esac
+}
+
+# --- Spotify download function ---
+download_spotify() {
+    if ! command -v spotdl &> /dev/null; then
+        echo -e "${RED}spotdl is not installed. Please install it first:${NC}"
+        echo "pip install spotdl"
+        return 1
+    fi
+    
+    select_directory
+    read -p "Enter Spotify URL (playlist/album/track): " SPOTIFY_URL
+    
+    if [ -z "$SPOTIFY_URL" ]; then
+        echo -e "${RED}No URL provided.${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Downloading from Spotify...${NC}"
+    echo -e "${YELLOW}This will download tracks with lyrics and metadata.${NC}"
+    
+    # Create output directory
+    mkdir -p "$SELECTED_DIR"
+    
+    # Download with spotdl
+    spotdl --bitrate 320k --generate-lrc --output "$SELECTED_DIR" "$SPOTIFY_URL"
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Spotify download complete in '$SELECTED_DIR'!${NC}"
+        
+        # Ask if user wants to embed lyrics
+        read -p "Embed lyrics into MP3 files? (y/n): " embed_lyrics
+        if [[ "$embed_lyrics" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+            embed_lyrics_function
+        fi
+        
+        # Ask if user wants to create playlist
+        read -p "Create M3U playlist? (y/n): " create_playlist
+        if [[ "$create_playlist" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+            generate_playlist_function
+        fi
+    else
+        echo -e "${RED}Spotify download failed.${NC}"
+    fi
+}
+
+# --- YouTube single track download ---
+download_youtube_track() {
+    select_directory
+    select_audio_options
+    
+    read -p "Enter YouTube URL: " TRACK_URL
+    
+    if [ -z "$TRACK_URL" ]; then
+        echo -e "${RED}No URL provided.${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Downloading from YouTube...${NC}"
+    
+    # Set output template
+    OUTPUT_TEMPLATE="$SELECTED_DIR/%(title)s.%(ext)s"
+    
+    # Build command
+    local cmd="yt-dlp -f bestaudio --extract-audio --audio-format $FORMAT"
+    cmd+=" --embed-thumbnail --embed-metadata --add-metadata"
+    cmd+=" -o \"$OUTPUT_TEMPLATE\""
+    
+    if [ "$QUALITY" != "0" ]; then
+        if [ "$FORCE_QUALITY" = true ]; then
+            # Force the bitrate even if source is lower quality
+            cmd+=" --audio-quality $QUALITY --postprocessor-args \"ffmpeg:-b:a $QUALITY\""
+        else
+            cmd+=" --audio-quality $QUALITY"
+        fi
+    fi
+    
+    cmd+=" \"$TRACK_URL\""
+    
+    eval $cmd
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Download complete in '$SELECTED_DIR'!${NC}"
+    else
+        echo -e "${RED}Download failed.${NC}"
+    fi
+}
+
+# --- YouTube playlist download ---
+download_youtube_playlist() {
+    select_directory
+    select_audio_options
+    
+    read -p "Enter YouTube playlist URL: " PLAYLIST_URL
+    
+    if [ -z "$PLAYLIST_URL" ]; then
+        echo -e "${RED}No URL provided.${NC}"
+        return 1
+    fi
+    
+    # Ask about numbering
+    read -p "Add track numbers to filenames? (y/n): " add_numbers
+    if [[ "$add_numbers" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        OUTPUT_TEMPLATE="$SELECTED_DIR/%(playlist_index)02d - %(title)s.%(ext)s"
+    else
+        OUTPUT_TEMPLATE="$SELECTED_DIR/%(title)s.%(ext)s"
+    fi
+    
+    # Ask about playlist subdirectory
+    read -p "Create subdirectory for playlist? (y/n): " create_subdir
+    if [[ "$create_subdir" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        read -p "Enter playlist folder name (or press Enter for auto): " playlist_name
+        if [ -z "$playlist_name" ]; then
+            # Try to get playlist name from YouTube
+            playlist_name=$(yt-dlp --get-filename -o "%(playlist_title)s" "$PLAYLIST_URL" 2>/dev/null | head -n 1)
+            playlist_name=${playlist_name:-"YouTube_Playlist"}
+        fi
+        # Clean the name
+        playlist_name=$(echo "$playlist_name" | tr ' ' '_' | tr -cd '[:alnum:]_-')
+        PLAYLIST_DIR="$SELECTED_DIR/$playlist_name"
+        mkdir -p "$PLAYLIST_DIR"
+        OUTPUT_TEMPLATE="$PLAYLIST_DIR/%(playlist_index)02d - %(title)s.%(ext)s"
+    else
+        PLAYLIST_DIR="$SELECTED_DIR"
+    fi
+    
+    echo -e "${BLUE}Downloading playlist from YouTube...${NC}"
+    
+    # Build command
+    local cmd="yt-dlp -f bestaudio --extract-audio --audio-format $FORMAT"
+    cmd+=" --embed-thumbnail --embed-metadata --add-metadata"
+    cmd+=" -o \"$OUTPUT_TEMPLATE\""
+    
+    if [ "$QUALITY" != "0" ]; then
+        if [ "$FORCE_QUALITY" = true ]; then
+            # Force the bitrate even if source is lower quality
+            cmd+=" --audio-quality $QUALITY --postprocessor-args \"ffmpeg:-b:a $QUALITY\""
+        else
+            cmd+=" --audio-quality $QUALITY"
+        fi
+    fi
+    
+    cmd+=" \"$PLAYLIST_URL\""
+    
+    eval $cmd
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Playlist download complete in '$PLAYLIST_DIR'!${NC}"
+        
+        # Ask about M3U playlist
+        read -p "Create M3U playlist file? (y/n): " create_m3u
+        if [[ "$create_m3u" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+            cd "$PLAYLIST_DIR" || return
+            playlist_file="${playlist_name:-playlist}.m3u"
+            echo "#EXTM3U" > "$playlist_file"
+            find . -name "*.$FORMAT" | sort | sed 's|^\./||' >> "$playlist_file"
+            echo -e "${GREEN}Created: $playlist_file${NC}"
+        fi
+    else
+        echo -e "${RED}Playlist download failed.${NC}"
+    fi
+}
+
+# --- Search and download ---
+search_and_download() {
+    select_directory
+    
+    read -p "Enter search term: " SEARCH_TERM
+    
+    if [ -z "$SEARCH_TERM" ]; then
+        echo -e "${RED}No search term provided.${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Searching YouTube for: ${SEARCH_TERM}${NC}"
+    
+    # Create temporary file for results
+    local temp_file="/tmp/ytsearch_$$"
+    
+    # Search and get results
+    yt-dlp --flat-playlist --get-id --get-title "ytsearch10:$SEARCH_TERM" > "$temp_file" 2>/dev/null
+    
+    if [ ! -s "$temp_file" ]; then
+        echo -e "${RED}No results found.${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    # Display results
+    echo -e "${YELLOW}Search Results:${NC}"
+    echo "-------------------------------------------"
+    
+    local titles=()
+    local video_ids=()
+    local i=1
+    
+    while read -r line; do
+        if [ $((i % 2)) -eq 1 ]; then
+            titles+=("$line")
+        else
+            video_ids+=("$line")
+            echo "$((${#titles[@]})). ${titles[-1]}"
+        fi
+        i=$((i+1))
+    done < "$temp_file"
+    
+    echo "-------------------------------------------"
+    read -p "Enter number to download (0 to cancel): " selection
+    
+    if [ "$selection" -eq 0 ] || [ "$selection" -gt "${#video_ids[@]}" ]; then
+        echo "Download canceled."
+        rm -f "$temp_file"
+        return
+    fi
+    
+    # Get selected video
+    local selected_id="${video_ids[$((selection-1))]}"
+    local track_url="https://www.youtube.com/watch?v=$selected_id"
+    
+    rm -f "$temp_file"
+    
+    # Download the selected track
+    select_audio_options
+    
+    echo -e "${BLUE}Downloading: ${titles[$((selection-1))]}${NC}"
+    
+    local output_template="$SELECTED_DIR/%(title)s.%(ext)s"
+    local cmd="yt-dlp -f bestaudio --extract-audio --audio-format $FORMAT"
+    cmd+=" --embed-thumbnail --embed-metadata --add-metadata"
+    cmd+=" -o \"$output_template\""
+    
+    if [ "$QUALITY" != "0" ]; then
+        if [ "$FORCE_QUALITY" = true ]; then
+            # Force the bitrate even if source is lower quality
+            cmd+=" --audio-quality $QUALITY --postprocessor-args \"ffmpeg:-b:a $QUALITY\""
+        else
+            cmd+=" --audio-quality $QUALITY"
+        fi
+    fi
+    
+    cmd+=" \"$track_url\""
+    
+    eval $cmd
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Download complete!${NC}"
+    else
+        echo -e "${RED}Download failed.${NC}"
+    fi
+}
+
+# --- Generate M3U playlist ---
+generate_playlist_function() {
+    if [ -z "$SELECTED_DIR" ]; then
+        select_directory
+    fi
+    
+    read -p "Enter playlist name (without .m3u extension): " playlist_name
+    
+    if [ -z "$playlist_name" ]; then
+        playlist_name="playlist"
+    fi
+    
+    cd "$SELECTED_DIR" || return
+    
+    # Find audio files
+    local audio_files=(*.{mp3,m4a,opus,flac})
+    local found_files=()
+    
+    for file in "${audio_files[@]}"; do
+        if [ -f "$file" ]; then
+            found_files+=("$file")
+        fi
+    done
+    
+    if [ ${#found_files[@]} -eq 0 ]; then
+        echo -e "${RED}No audio files found in '$SELECTED_DIR'.${NC}"
+        return 1
+    fi
+    
+    # Create M3U playlist
+    echo "#EXTM3U" > "$playlist_name.m3u"
+    printf '%s\n' "${found_files[@]}" | sort >> "$playlist_name.m3u"
+    
+    echo -e "${GREEN}Created playlist: $playlist_name.m3u (${#found_files[@]} tracks)${NC}"
+}
+
+# --- Embed lyrics function ---
+embed_lyrics_function() {
+    if [ -z "$SELECTED_DIR" ]; then
+        select_directory
+    fi
+    
+    if ! command -v eyeD3 &> /dev/null; then
+        echo -e "${RED}eyeD3 is not installed. Cannot embed lyrics.${NC}"
+        echo "Install with: pip install eyed3"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Embedding lyrics into MP3 files in '$SELECTED_DIR'...${NC}"
+    
+    local mp3_files=("$SELECTED_DIR"/*.mp3)
+    local processed=0
+    
+    if [ ! -e "${mp3_files[0]}" ]; then
+        echo -e "${RED}No MP3 files found.${NC}"
+        return 1
+    fi
+    
+    for file in "${mp3_files[@]}"; do
+        if [ ! -f "$file" ]; then continue; fi
+        
+        local lrc_file="${file%.mp3}.lrc"
+        if [ -f "$lrc_file" ]; then
+            echo "Processing: $(basename "$file")"
+            eyeD3 --add-lyrics "$lrc_file" "$file" &>/dev/null
+            if [ $? -eq 0 ]; then
+                processed=$((processed + 1))
+            fi
+        fi
+    done
+    
+    echo -e "${GREEN}Embedded lyrics in $processed files.${NC}"
+}
+
+# --- Fix metadata and thumbnails ---
+fix_metadata() {
+    select_directory
+    
+    echo -e "${BLUE}Fixing metadata and thumbnails in '$SELECTED_DIR'${NC}"
+    read -p "Continue? (y/n): " confirm
+    
+    if [[ ! "$confirm" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        return
+    fi
+    
+    local audio_files=("$SELECTED_DIR"/*.{mp3,m4a,opus,flac})
+    local processed=0
+    
+    for file in "${audio_files[@]}"; do
+        if [ ! -f "$file" ]; then continue; fi
+        
+        echo -e "${BLUE}Processing: $(basename "$file")${NC}"
+        
+        # Extract filename for search
+        local filename=$(basename "$file")
+        local extension="${filename##*.}"
+        local basename_no_ext="${filename%.*}"
+        
+        # Check if metadata exists
+        if ! ffprobe -v quiet -show_format -of json "$file" 2>/dev/null | grep -q '"title"'; then
+            echo "  Adding metadata..."
+            # Use filename as title if no metadata
+            if command -v eyeD3 &> /dev/null && [ "$extension" = "mp3" ]; then
+                eyeD3 --title "$basename_no_ext" "$file" &>/dev/null
+            fi
+        fi
+        
+        # Check for embedded artwork
+        if [ "$extension" = "mp3" ] || [ "$extension" = "m4a" ]; then
+            if ! ffprobe -v quiet -show_streams -select_streams v -of json "$file" 2>/dev/null | grep -q '"codec_type"'; then
+                echo "  No thumbnail found - you may want to add one manually"
+            fi
+        fi
+        
+        processed=$((processed + 1))
+    done
+    
+    echo -e "${GREEN}Processed $processed files.${NC}"
+}
+
+# --- Batch operations ---
+batch_operations() {
+    echo -e "${CYAN}Batch Operations${NC}"
+    echo "1) Download Spotify playlist + embed lyrics + create M3U"
+    echo "2) Download YouTube playlist + create M3U"
+    echo "3) Create M3U for all audio files in directory"
+    echo "4) Back to main menu"
+    
+    read -p "Choose operation [1-4]: " batch_choice
+    
+    case "$batch_choice" in
+        1)
+            if command -v spotdl &> /dev/null; then
+                download_spotify
+            else
+                echo -e "${RED}spotdl not available.${NC}"
+            fi
+            ;;
+        2)
+            download_youtube_playlist
+            ;;
+        3)
+            generate_playlist_function
+            ;;
+        4)
+            return
+            ;;
+        *)
+            echo -e "${RED}Invalid option.${NC}"
+            ;;
+    esac
+}
+
+# --- Configuration menu ---
+configure_settings() {
+    echo -e "${CYAN}Configuration${NC}"
+    echo "Current base path: $BASE_PATH"
+    echo ""
+    echo "1) Change base music directory"
+    echo "2) Show current settings"
+    echo "3) Reset to defaults"
+    echo "4) Back to main menu"
+    
+    read -p "Choose option [1-4]: " config_choice
+    
+    case "$config_choice" in
+        1)
+            read -p "Enter new base music directory: " new_path
+            if [ -n "$new_path" ]; then
+                # Expand tilde
+                new_path="${new_path/#\~/$HOME}"
+                mkdir -p "$new_path"
+                BASE_PATH="$new_path"
+                
+                # Save to config file
+                mkdir -p "$(dirname "$CONFIG_FILE")"
+                echo "BASE_PATH=\"$BASE_PATH\"" > "$CONFIG_FILE"
+                echo -e "${GREEN}Base path updated to: $BASE_PATH${NC}"
+            fi
+            ;;
+        2)
+            echo "Base music directory: $BASE_PATH"
+            echo "Config file: $CONFIG_FILE"
+            if command -v spotdl &> /dev/null; then
+                echo "Spotify support: Available"
+            else
+                echo "Spotify support: Not available (install spotdl)"
+            fi
+            if command -v eyeD3 &> /dev/null; then
+                echo "Lyrics embedding: Available"
+            else
+                echo "Lyrics embedding: Limited (install eyed3)"
+            fi
+            ;;
+        3)
+            BASE_PATH="${HOME}/Music"
+            rm -f "$CONFIG_FILE"
+            echo -e "${GREEN}Settings reset to defaults.${NC}"
+            ;;
+        4)
+            return
+            ;;
+        *)
+            echo -e "${RED}Invalid option.${NC}"
+            ;;
+    esac
+}
+
+# --- Main menu ---
+main_menu() {
+    while true; do
+        echo ""
+        echo -e "${BLUE}🎵 Enhanced Music Downloader${NC}"
+        echo "==========================================="
+        echo "1) Download from Spotify (playlist/album/track)"
+        echo "2) Download YouTube track"
+        echo "3) Download YouTube playlist"
+        echo "4) Generate M3U playlist"
+        echo "5) Embed lyrics into MP3s"
+        echo "6) Batch operations"
+        echo "7) Configuration"
+        echo "0) Exit"
+        echo "==========================================="
+        
+        read -p "Choose option [0-7]: " choice
+        
+        case "$choice" in
+            1)
+                download_spotify
+                ;;
+            2)
+                download_youtube_track
+                ;;
+            3)
+                download_youtube_playlist
+                ;;
+            4)
+                generate_playlist_function
+                ;;
+            5)
+                embed_lyrics_function
+                ;;
+            6)
+                batch_operations
+                ;;
+            7)
+                configure_settings
+                ;;
+            0)
+                echo -e "${GREEN}Thanks for using Enhanced Music Downloader! 🎵${NC}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Invalid option. Please try again.${NC}"
+                ;;
+        esac
+        
+        # Pause before showing menu again
+        echo ""
+        read -p "Press Enter to continue..."
+    done
+}
+
+# --- Main execution ---
+echo -e "${CYAN}Enhanced Music Downloader - Starting up...${NC}"
+check_dependencies
+main_menu
+```
+
+## Usage
+
+1. **Make the script executable**:
+   ```bash
+   chmod +x music-downloader.sh
+   ```
+
+2. **Run the script**:
+   ```bash
+   ./music-downloader.sh
+   ```
+
+3. **Follow the interactive menu** to:
+   - Configure your music directory
+   - Download from Spotify or YouTube
+   - Choose audio quality and format
+   - Generate playlists automatically
+
+## Configuration
+
+The script creates a configuration file at `~/.config/n-music/config` where you can set:
+- Default music directory path
+- Other preferences
+
+## Menu Options
+
+1. **Spotify Downloads** - Requires spotdl installation
+2. **YouTube Track** - Download individual videos as audio
+3. **YouTube Playlist** - Download entire playlists with numbering options
+4. **Generate M3U** - Create playlists from existing audio files
+5. **Embed Lyrics** - Add lyrics to MP3 files (requires eyeD3)
+6. **Batch Operations** - Streamlined workflows
+7. **Configuration** - Manage settings and paths
+
+## What's Next
+
+- [Deployment Scripts](/docs/scripts/deployment-scripts) - Other automation scripts for homelab management
+- [Docker Documentation](/docs/documentation/docker) - Container management and deployment
+- [Knowledge Base](/docs/knowledge) - Troubleshooting and tips
