@@ -1,0 +1,7 @@
+{
+  "title": "Authentication",
+  "description": "Authentication and authorization tools",
+  "pages": [
+    "pocket-auth"
+  ]
+}

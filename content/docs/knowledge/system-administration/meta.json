@@ -1,0 +1,7 @@
+{
+  "title": "System Administration",
+  "description": "System administration and infrastructure knowledge",
+  "pages": [
+    "easybuild-modules"
+  ]
+}

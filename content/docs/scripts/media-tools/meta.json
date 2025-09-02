@@ -1,0 +1,7 @@
+{
+  "title": "Media Tools",
+  "description": "Scripts for media processing and downloading",
+  "pages": [
+    "music-downloader"
+  ]
+}

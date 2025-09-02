@@ -1,0 +1,7 @@
+{
+  "title": "Automation",
+  "description": "Deployment and automation scripts",
+  "pages": [
+    "deployment-scripts"
+  ]
+}

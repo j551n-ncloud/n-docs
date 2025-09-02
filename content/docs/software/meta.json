@@ -4,9 +4,9 @@
   "root": true,
   "pages": [
     "index",
-    "fumadocs-cli",
-    "nextcloud",
-    "pocket-auth",
-    "cloudflare-tunnels"
+    "fumadocs",
+    "cloud-services",
+    "networking",
+    "authentication"
   ]
 }

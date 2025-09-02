@@ -1,0 +1,8 @@
+{
+  "title": "Fumadocs",
+  "description": "Documentation framework setup and CLI tools",
+  "pages": [
+    "fumadocs-setup",
+    "fumadocs-cli"
+  ]
+}
