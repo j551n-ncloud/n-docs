@@ -3,7 +3,8 @@
   "pages": [
     "index",
     "documentation",
-    "scripts", 
+    "software",
+    "scripts",
     "knowledge"
   ]
 }

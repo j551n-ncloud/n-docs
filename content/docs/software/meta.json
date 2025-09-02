@@ -1,7 +1,10 @@
 {
   "title": "Software",
+  "description": "Software documentation and guides",
+  "root": true,
   "pages": [
     "index",
+    "fumadocs-cli",
     "nextcloud",
     "pocket-auth",
     "cloudflare-tunnels"

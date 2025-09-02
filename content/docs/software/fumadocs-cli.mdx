@@ -3,47 +3,67 @@ title: Fumadocs CLI
 description: Using the Fumadocs CLI for enhanced documentation management and components
 ---
 
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
 # Fumadocs CLI
 
 The Fumadocs CLI is a powerful tool for managing and enhancing your documentation site with components, customizations, and file tree generation.
 
-## Installation & Initialization
+## Installation
 
-### Initialize CLI Config
+Initialize a config for CLI:
 
+<Tabs items={['npm', 'pnpm', 'yarn', 'bun']}>
+<Tab value="npm">
 ```bash
-# npm
 npx @fumadocs/cli
-
-# pnpm
-pnpm dlx @fumadocs/cli
-
-# yarn
-yarn dlx @fumadocs/cli
-
-# bun
-bunx @fumadocs/cli
 ```
+</Tab>
+<Tab value="pnpm">
+```bash
+pnpm dlx @fumadocs/cli
+```
+</Tab>
+<Tab value="yarn">
+```bash
+yarn dlx @fumadocs/cli
+```
+</Tab>
+<Tab value="bun">
+```bash
+bun x @fumadocs/cli
+```
+</Tab>
+</Tabs>
 
-This creates a configuration file where you can customize component output paths and other settings.
+You can change the output paths of components in the config.
 
-## Adding Components
+## Components
 
 ### Install Components Interactively
 
+<Tabs items={['npm', 'pnpm', 'yarn', 'bun']}>
+<Tab value="npm">
 ```bash
-# npm
 npx @fumadocs/cli add
-
-# pnpm
-pnpm dlx @fumadocs/cli add
-
-# yarn
-yarn dlx @fumadocs/cli add
-
-# bun
-bunx @fumadocs/cli add
 ```
+</Tab>
+<Tab value="pnpm">
+```bash
+pnpm dlx @fumadocs/cli add
+```
+</Tab>
+<Tab value="yarn">
+```bash
+yarn dlx @fumadocs/cli add
+```
+</Tab>
+<Tab value="bun">
+```bash
+bun x @fumadocs/cli add
+```
+</Tab>
+</Tabs>
 
 ### Install Specific Components
 

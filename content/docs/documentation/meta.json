@@ -1,14 +1,12 @@
 {
   "title": "Documentation",
-  "description": "Homelab infrastructure and software documentation",
+  "description": "Homelab infrastructure documentation",
   "root": true,
   "pages": [
     "index",
-    "fumadocs-cli",
     "proxmox",
     "docker",
     "kubernetes",
-    "vms-lxc",
-    "software"
+    "vms-lxc"
   ]
 }
