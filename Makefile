@@ -100,18 +100,18 @@ docker-logs: ## Show Docker container logs
 # Docker Compose targets
 compose-up: ## Start with Docker Compose
 	@echo "$(GREEN)[INFO]$(NC) Starting with Docker Compose..."
-	docker-compose up -d
+	docker compose up -d
 
 compose-up-nginx: ## Start with Docker Compose + Nginx
 	@echo "$(GREEN)[INFO]$(NC) Starting with Docker Compose + Nginx..."
-	docker-compose --profile with-nginx up -d
+	docker compose --profile with-nginx up -d
 
 compose-down: ## Stop Docker Compose
 	@echo "$(GREEN)[INFO]$(NC) Stopping Docker Compose..."
-	docker-compose down
+	docker compose down
 
 compose-logs: ## Show Docker Compose logs
-	docker-compose logs -f
+	docker compose logs -f
 
 # Deployment targets
 deploy: docker-run ## Deploy application (alias for docker-run)
