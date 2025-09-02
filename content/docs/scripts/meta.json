@@ -1,0 +1,9 @@
+{
+  "title": "Scripts",
+  "description": "Automation scripts and utilities for homelab management",
+  "root": true,
+  "pages": [
+    "index",
+    "deployment-scripts"
+  ]
+}

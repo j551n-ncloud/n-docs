@@ -1,0 +1,8 @@
+{
+  "title": "Kubernetes",
+  "pages": [
+    "index",
+    "kubernetes-fundamentals",
+    "awx-deployment"
+  ]
+}

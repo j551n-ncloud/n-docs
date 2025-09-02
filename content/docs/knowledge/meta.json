@@ -1,0 +1,9 @@
+{
+  "title": "Knowledge & Troubleshooting", 
+  "description": "Troubleshooting guides and knowledge base",
+  "root": true,
+  "pages": [
+    "index",
+    "easybuild-modules"
+  ]
+}

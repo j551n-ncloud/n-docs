@@ -1,0 +1,13 @@
+{
+  "title": "Documentation",
+  "description": "Homelab infrastructure and software documentation",
+  "root": true,
+  "pages": [
+    "index",
+    "proxmox",
+    "docker",
+    "kubernetes",
+    "vms-lxc",
+    "software"
+  ]
+}

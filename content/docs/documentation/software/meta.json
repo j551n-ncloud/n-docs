@@ -1,0 +1,9 @@
+{
+  "title": "Software",
+  "pages": [
+    "index",
+    "nextcloud",
+    "pocket-auth",
+    "cloudflare-tunnels"
+  ]
+}

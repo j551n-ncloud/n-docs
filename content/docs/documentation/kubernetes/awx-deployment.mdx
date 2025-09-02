@@ -1,0 +1,143 @@
+---
+title: AWX on Single Node K3s
+description: Deploy AWX automation platform on a single node K3s cluster
+---
+
+# AWX on Single Node K3s
+
+An example implementation of AWX on single node K3s using AWX Operator.
+
+- Accessible over HTTPS from remote host
+
+## Requirements
+
+- **Computing resources**
+    - Both **AMD64** (x86_64) with x86-64-v2 or cpu type Host support bc the DB would not start , and **ARM64**  (aarch64) are supported.
+  - **4 GiB RAM minimum**.
+  - It's recommended to add more CPUs and RAM (like 4 CPUs and 8 GiB RAM or more) to avoid performance issue and job scheduling issue.
+- **Storage resources**
+  - At least **10 GiB for `/var/lib/rancher`** are safe for fresh install.
+  - **The actual consumption highly depends on your environment and your use case**, so you should to pay attention to the consumption and add more capacity if required.
+
+## Deployment Instructions
+
+Disable firewalld if enabled if not use kubernetes-firewall first before installing K3S. This is [recommended by K3s](https://docs.k3s.io/installation/requirements?os=rhel#operating-systems).
+
+```bash
+cd firewall
+. kubernetes-firewall.sh
+```
+
+### Install K3s
+
+Install K3s with `--write-kubeconfig-mode 644` to make the config file (`/etc/rancher/k3s/k3s.yaml`) readable by non-root users.
+
+```bash
+curl -sfL https://get.k3s.io |  sh -s - --write-kubeconfig-mode 644
+```
+
+Also add your subnet in noproxy in:
+
+```bash
+vim /etc/systemd/system/k3s.service.env
+#should look like this 
+no_proxy='localhost,127.0.0.1, 10.131.196.0/22'
+```
+
+### Install AWX Operator
+
+Clone this repository and change directory.
+
+```bash
+cd ~
+git clone https://gitlab.j551n.com/j551n/awx-operator.git
+cd awx-operator
+```
+
+Then copy or create (if needed) a certificate to the kubernetes folder.
+
+PS: is not needed you can also specify the location of the Cert and key.
+
+```bash
+cd kubernetes
+openssl req -x509 -nodes -days 365 -newkey rsa:4096 -keyout yourdomain.key -out yourdomain.crt -subj "/CN=example.com" -addext "subjectAltName=DNS:example.com"
+```
+
+After that you copied the Key and Cert file to the system.
+You can run the awx.sh script
+Also look for the [AWX-Operator version](https://github.com/ansible/awx-operator/releases)
+
+```bash
+chmod +x awx.sh
+. awx.sh
+```
+
+By default, the admin user is admin and the password is available in the `<resourcename>-admin-password` secret. To retrieve the admin password, run:
+
+```bash
+kubectl get secret odcf-awx-admin-password -n awx -o jsonpath="{.data.password}" | base64 --decode ; echo
+```
+
+## Troubleshooting
+
+1. **Check Resources:**
+
+    ```bash
+    kubectl -n awx get awx,all,ingress,secrets
+    ```
+
+2. **Create Admin Password Secret (if not created):**
+
+    ```bash
+    kubectl -n awx create secret generic odcf-awx-admin-password --from-literal=password=<your-admin-password>
+    ```
+
+3. **Verify Ingress:**
+
+    ```bash
+    kubectl get endpoints -n awx
+    ```
+
+    Check if the endpoint for `odcf-awx-service` is available on port 80. If not, update the `awx-ingress-tls.yaml` script.
+
+## Useful Commands
+
+```bash
+kubectl get namespaces
+kubectl -n awx get awx,all,ingress,secrets
+kubectl get svc -n <namespace>
+kubectl describe pod <pod_name> -n <namespace>
+kubectl describe service <service_name> -n <namespace>
+kubectl get events -n <namespace>
+kubectl -n awx get all
+kubectl -n awx logs -f deployments/awx-operator-controller-manager
+```
+
+## What's Next?
+
+Congratulations! You've successfully deployed AWX on K3s. Here's what to explore next:
+
+<Cards>
+  <Card title="AWX Configuration" href="/docs/knowledge" description="Configure playbooks and automation workflows" />
+  <Card title="Monitoring Setup" href="/docs/documentation/kubernetes" description="Add monitoring to your K3s cluster" />
+  <Card title="Backup Strategy" href="/docs/knowledge" description="Protect your AWX configuration and data" />
+</Cards>
+
+### Deployment Timeline - You Are Here! ✅
+
+1. ✅ **Prerequisites** - Hardware and network setup
+2. ✅ **K3s Installation** - Single node cluster
+3. ✅ **AWX Operator** - Automation platform deployed
+4. ⏳ **Next**: Configure AWX projects and playbooks
+5. ⏳ **Then**: Set up inventory and credentials
+6. ⏳ **Finally**: Create automation workflows
+
+### Recommended Next Steps
+
+1. **Immediate**: Access AWX web interface and change default password
+2. **Short-term**: Create your first project and inventory
+3. **Long-term**: Integrate with your homelab infrastructure automation
+
+---
+*Credits: written by Johannes Nguyen*  
+*johannes.nguyen@dkfz-heidelberg.de*

@@ -1,0 +1,119 @@
+---
+title: Deployment Scripts
+description: Automated deployment scripts for homelab services
+---
+
+# Deployment Scripts
+
+Automated scripts for deploying and configuring homelab services.
+
+## Docker Deployment Script
+
+```bash
+#!/bin/bash
+# docker-deploy.sh - Deploy Docker containers with compose
+
+set -e
+
+COMPOSE_FILE=${1:-docker-compose.yml}
+SERVICE_NAME=${2:-"homelab-stack"}
+
+echo "🚀 Deploying $SERVICE_NAME using $COMPOSE_FILE"
+
+# Check if Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo "❌ Docker is not running. Please start Docker first."
+    exit 1
+fi
+
+# Pull latest images
+echo "📥 Pulling latest images..."
+docker-compose -f "$COMPOSE_FILE" pull
+
+# Deploy services
+echo "🔧 Starting services..."
+docker-compose -f "$COMPOSE_FILE" up -d
+
+# Check health
+echo "🏥 Checking service health..."
+docker-compose -f "$COMPOSE_FILE" ps
+
+echo "✅ Deployment complete!"
+```
+
+## K3s Installation Script
+
+```bash
+#!/bin/bash
+# k3s-install.sh - Install and configure K3s
+
+set -e
+
+K3S_VERSION=${1:-"latest"}
+KUBECONFIG_MODE=${2:-"644"}
+
+echo "🚀 Installing K3s version: $K3S_VERSION"
+
+# Install K3s
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="$K3S_VERSION" sh -s - \
+    --write-kubeconfig-mode "$KUBECONFIG_MODE"
+
+# Wait for node to be ready
+echo "⏳ Waiting for node to be ready..."
+kubectl wait --for=condition=Ready nodes --all --timeout=300s
+
+# Display cluster info
+echo "📊 Cluster Information:"
+kubectl get nodes
+kubectl get pods -A
+
+echo "✅ K3s installation complete!"
+echo "📝 Kubeconfig: /etc/rancher/k3s/k3s.yaml"
+```
+
+## Proxmox VM Creation Script
+
+```bash
+#!/bin/bash
+# create-vm.sh - Create Proxmox VM from template
+
+set -e
+
+VM_ID=${1:-""}
+VM_NAME=${2:-""}
+TEMPLATE_ID=${3:-"9000"}
+CORES=${4:-"2"}
+MEMORY=${5:-"2048"}
+DISK_SIZE=${6:-"20G"}
+
+if [[ -z "$VM_ID" || -z "$VM_NAME" ]]; then
+    echo "Usage: $0 <VM_ID> <VM_NAME> [TEMPLATE_ID] [CORES] [MEMORY] [DISK_SIZE]"
+    exit 1
+fi
+
+echo "🚀 Creating VM $VM_ID ($VM_NAME) from template $TEMPLATE_ID"
+
+# Clone from template
+qm clone "$TEMPLATE_ID" "$VM_ID" --name "$VM_NAME"
+
+# Configure resources
+qm set "$VM_ID" --cores "$CORES" --memory "$MEMORY"
+
+# Resize disk
+qm resize "$VM_ID" scsi0 "$DISK_SIZE"
+
+# Start VM
+qm start "$VM_ID"
+
+echo "✅ VM $VM_NAME created successfully!"
+echo "📊 VM Details:"
+qm config "$VM_ID"
+```
+
+## What's Next?
+
+<Cards>
+  <Card title="Monitoring Scripts" href="/docs/scripts" description="System monitoring and alerting automation" />
+  <Card title="Backup Scripts" href="/docs/scripts" description="Automated backup and recovery solutions" />
+  <Card title="Maintenance Scripts" href="/docs/scripts" description="Regular system maintenance automation" />
+</Cards>

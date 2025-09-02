@@ -1,0 +1,252 @@
+---
+title: EasyBuild Modules Compiling
+description: Complete guide to EasyBuild recipe commands and module compilation
+---
+
+# EasyBuild Recipe Commands Reference
+
+## Overview
+
+EasyBuild Modules Compiling automates the process of installing scientific software modules on computing clusters or systems. It simplifies complex software builds and installations, providing a unified and automated approach.
+
+## Basic Build Commands
+
+```bash
+# Build a recipe
+eb MySoftware-1.0.0-foss-2023a.eb
+
+# Build with dependencies using robot mode
+eb MySoftware-1.0.0-foss-2023a.eb --robot
+
+# Robot mode with current directory as search path
+eb -r . MySoftware-1.0.0-foss-2023a.eb
+
+# Build ignoring checksums (use with caution)
+eb -r . --ignore-checksums path/MySoftware-1.0.0-foss-2023a.eb
+
+# Dry run (show what would be built)
+eb MySoftware-1.0.0-foss-2023a.eb --dry-run
+
+# Build multiple recipes
+eb *.eb --robot
+```
+
+## How to Run EasyBuild Module Compiling
+
+### 1. Select Software
+Choose the software package you want to install. For example, "GROMACS".
+
+### 2. Build the Module
+Use the `eb` command with robot mode (`-r`) and dependency search path (`.`):
+```bash
+eb -r . path/GROMACS-2023.1-foss-2023a.eb
+```
+
+The dot (`.`) is the starting search path for dependency modules.
+The `-r` stands for Robot mode - it searches for dependencies starting from the search path.
+
+### 3. Load the Module
+After the module is built, load it into your environment:
+```bash
+module load GROMACS/2023.1-foss-2023a
+```
+
+### 4. Verify Installation
+Check that the software is installed correctly:
+```bash
+gmx --version
+```
+
+## Recipe Creation Commands
+
+```bash
+# Create new recipe from template
+eb --new-recipe MySoftware 1.0.0
+
+# Copy existing recipe as template
+cp existing-recipe.eb MySoftware-1.0.0-foss-2023a.eb
+
+# Search for existing recipes
+eb --search MySoftware
+
+# Find recipe files
+find $EASYBUILD_CONFIGFILES -name "*MySoftware*"
+```
+
+## Debugging Commands
+
+```bash
+# Build with debug output
+eb MySoftware-1.0.0-foss-2023a.eb --debug
+
+# Stop at specific step
+eb MySoftware-1.0.0-foss-2023a.eb --stop=configure
+eb MySoftware-1.0.0-foss-2023a.eb --stop=build
+eb MySoftware-1.0.0-foss-2023a.eb --stop=install
+
+# Keep build directory
+eb MySoftware-1.0.0-foss-2023a.eb --stop=build --try-update-deps
+
+# Force rebuild
+eb MySoftware-1.0.0-foss-2023a.eb --force --rebuild
+
+# Skip sanity check
+eb MySoftware-1.0.0-foss-2023a.eb --skip-test-step
+```
+
+## Testing Commands
+
+```bash
+# Test existing installation
+eb MySoftware-1.0.0-foss-2023a.eb --sanity-check-only
+
+# Run tests during build
+eb MySoftware-1.0.0-foss-2023a.eb --run-all-tests
+
+# Extended dry run with tests
+eb MySoftware-1.0.0-foss-2023a.eb --extended-dry-run
+```
+
+## Dependency Management
+
+```bash
+# Check dependencies
+eb MySoftware-1.0.0-foss-2023a.eb --dry-run --robot
+
+# Missing dependencies only
+eb MySoftware-1.0.0-foss-2023a.eb --missing-modules
+
+# Resolve dependencies automatically
+eb MySoftware-1.0.0-foss-2023a.eb --robot --dry-run
+
+# Build dependencies only
+eb MySoftware-1.0.0-foss-2023a.eb --robot --stop=ready
+```
+
+## Recipe Example Structure
+
+### Basic EasyBuild Recipe (.eb file)
+```bash
+easyblock = 'AutotoolsMake'
+name = 'example-software'
+version = '1.0'
+homepage = 'https://example.com'
+description = "Example software package"
+
+toolchain = {'name': 'GCC', 'version': '9.3.0'}
+
+sources = [SOURCE_TAR_GZ]
+source_urls = ['https://example.com/downloads/']
+
+dependencies = [('GCC', '9.3.0')]
+
+patches = [
+    ('patch1.patch', 1),
+    ('patch2.patch', 1)
+]
+
+preconfigopts = './configure --prefix=$EBROOTEXAMPLE_SOFTWARE'
+
+buildopts = 'VERBOSE=1'
+
+postinstallcmds = [
+    'echo "Example software installation complete."'
+]
+
+sanity_check_paths = {
+    'files': ['bin/example-software'],
+    'dirs': ['lib', 'include']
+}
+
+moduleclass = 'tools'
+```
+
+### EasyBlock Types
+The `easyblock` variable specifies the build method:
+- `AutotoolsMake` - For Autotools-based packages
+- `CMakeMake` - For CMake-based packages  
+- `PythonPackage` - For Python packages
+- `MakeFile` - For simple Makefile packages
+- `ConfigureMake` - For configure + make packages
+
+## Common Workflow
+
+```bash
+# 1. Create recipe
+eb --new-recipe MySoftware 1.0.0
+
+# 2. Edit recipe file
+vim MySoftware-1.0.0-foss-2023a.eb
+
+# 3. Test syntax
+eb MySoftware-1.0.0-foss-2023a.eb --check-syntax
+
+# 4. Dry run
+eb MySoftware-1.0.0-foss-2023a.eb --dry-run --robot
+
+# 5. Build
+eb MySoftware-1.0.0-foss-2023a.eb --robot
+
+# 6. Test installation
+eb MySoftware-1.0.0-foss-2023a.eb --sanity-check-only
+```
+
+## Troubleshooting Commands
+
+```bash
+# Check build log
+tail -f /tmp/eb-*/easybuild-MySoftware-*.log
+
+# Find build directory
+find /tmp -name "*MySoftware*" -type d
+
+# Check module availability
+module avail MySoftware
+
+# Debug failed build
+eb MySoftware-1.0.0-foss-2023a.eb --debug --stop=configure
+
+# Clean failed build
+eb MySoftware-1.0.0-foss-2023a.eb --force --cleanup-builddir
+```
+
+## What's Next?
+
+Master EasyBuild with these progressive steps:
+
+<Cards>
+  <Card title="Advanced Recipes" href="/docs/knowledge" description="Create complex multi-dependency builds" />
+  <Card title="Custom Toolchains" href="/docs/knowledge" description="Build your own compiler toolchains" />
+  <Card title="HPC Integration" href="/docs/documentation" description="Integrate with cluster management" />
+</Cards>
+
+### Learning Timeline - Module Building
+
+1. ✅ **Basic Commands** - Simple eb builds
+2. ✅ **Recipe Creation** - Write your first .eb file
+3. ⏳ **Next**: Handle complex dependencies
+4. ⏳ **Then**: Custom easyblocks and patches
+5. ⏳ **Advanced**: Toolchain development
+6. ⏳ **Expert**: Contributing to EasyBuild community
+
+### Skill Progression
+
+- **Beginner**: Use existing recipes with `eb --robot`
+- **Intermediate**: Modify recipes and handle dependencies
+- **Advanced**: Create custom easyblocks and toolchains
+- **Expert**: Contribute recipes to the community
+
+## References and Resources
+
+### Documentation
+- [EasyBuild Documentation](https://easybuild.readthedocs.io)
+- [EasyBuild GitHub Repository](https://github.com/easybuilders/easybuild)
+- [EasyBuild Website](https://www.easybuild.io/)
+
+### Related Technologies
+- High-Performance Computing (HPC)
+- Environment Modules
+- Lmod
+- Software Development
+- Computational Science
+- Build Automation

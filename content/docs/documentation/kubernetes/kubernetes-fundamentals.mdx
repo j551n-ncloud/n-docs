@@ -1,0 +1,177 @@
+---
+title: Kubernetes Fundamentals
+description: Essential Kubernetes concepts and examples for homelab deployment
+---
+
+# Kubernetes Foundation
+
+## Important Concepts
+
+### Pods
+
+Smallest deployable unit in kubernetes.
+
+```yaml
+# pod-example.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+    ports:
+    - containerPort: 80
+```
+
+### Services
+
+Enables communication between Pods
+
+```yaml
+# service-example.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+```
+
+### Deployments
+
+Manages the replication and updates of the pods
+
+```yaml
+# deployment-example.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+```
+
+### ConfigMaps
+
+Saves the Configuration data
+
+```yaml
+# configmap-example.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  database_url: "postgresql://localhost:5432/mydb"
+  debug: "true"
+```
+
+### Secrets
+
+Saves the sensible data, like passwords
+
+```yaml
+# secret-example.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+type: Opaque
+data:
+  username: YWRtaW4=  # base64 encoded "admin"
+  password: MWYyZDFlMmU2N2Rm  # base64 encoded "1f2d1e2e67df"
+```
+
+## Working with YAML Files
+
+### Generating ConfigMap YAML
+
+Use the `--dry-run=client` flag combined with `-o yaml` to **generate the YAML manifest without applying it**, then redirect (`>`) it to a file:
+
+```bash
+kubectl create configmap app-config --from-literal=ENV=production --dry-run=client -o yaml > app-config.yaml
+```
+
+### Generating Secret YAML
+
+Use:
+
+```bash
+kubectl create secret generic app-secret --from-literal=password=supersecret --dry-run=client -o yaml > app-secret.yaml
+
+# This will generate the secret manifest as YAML and save it to `app-secret.yaml`.
+    
+# You can then apply it anytime with:
+kubectl apply -f app-secret.yaml
+```
+
+### Applying Multiple Files
+
+You have a few options:
+
+### 1. Apply files one by one:
+
+```bash
+kubectl apply -f app-secret.yaml
+kubectl apply -f app-config.yaml
+```
+
+### 2. Apply a directory containing both files:
+
+If both files are in the same folder, say `/home/j551n/Docs`, just run:
+
+```bash
+kubectl apply -f /home/j551n/Docs/
+```
+
+That applies all manifests inside the folder.
+
+### 3. Use multiple `-f` flags (supported in newer versions):
+
+```bash
+kubectl apply -f app-secret.yaml -f app-config.yaml
+```
+
+## What's Next?
+
+Now that you understand Kubernetes fundamentals, here's your learning path:
+
+<Cards>
+  <Card title="AWX Deployment" href="/docs/documentation/kubernetes/awx-deployment" description="Deploy AWX automation platform on K3s" />
+  <Card title="Docker Basics" href="/docs/documentation/docker" description="Learn containerization before advanced K8s" />
+  <Card title="Proxmox Setup" href="/docs/documentation/proxmox" description="Set up your virtualization foundation" />
+</Cards>
+
+### Recommended Timeline
+
+1. **Next Step**: [Deploy AWX on K3s](/docs/homelab/kubernetes/awx-deployment) - Put your knowledge into practice
+2. **Then**: Explore more Kubernetes applications and services
+3. **Finally**: Set up monitoring and logging for your cluster
+
+### Prerequisites Check
+- ✅ Understand Pods, Services, Deployments
+- ⏳ **Next**: Learn AWX deployment process
+- ⏳ **Later**: Advanced Kubernetes networking
