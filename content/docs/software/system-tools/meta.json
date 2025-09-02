@@ -1,0 +1,7 @@
+{
+  "title": "System Tools",
+  "description": "Terminal and system administration tools",
+  "pages": [
+    "tmux"
+  ]
+}

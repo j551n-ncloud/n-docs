@@ -1,0 +1,199 @@
+---
+title: "TMUX Guide"
+description: "Complete guide to using TMUX terminal multiplexer for managing multiple terminal sessions"
+---
+
+# TMUX Guide
+
+## Introduction
+
+TMUX (Terminal Multiplexer) is a powerful terminal management tool that allows you to run and manage multiple terminal sessions from a single window. It is particularly useful for developers and system administrators who need to manage multiple tasks simultaneously.
+
+## Installation
+
+To install TMUX on your system, use the following commands based on your operating system:
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get update
+sudo apt-get install tmux
+```
+
+**CentOS/RHEL:**
+```bash
+sudo yum install tmux
+```
+
+**macOS (using Homebrew):**
+```bash
+brew install tmux
+```
+
+## Basic Usage
+
+### Starting a TMUX Session
+
+To start a new TMUX session:
+```bash
+tmux
+```
+
+To start a session with a specific name:
+```bash
+tmux new -s session_name
+```
+
+### Detaching and Attaching to Sessions
+
+To detach from the current TMUX session and return to the regular terminal:
+```
+Ctrl+b d
+```
+
+To list all active TMUX sessions:
+```bash
+tmux ls
+```
+
+To attach to a specific session:
+```bash
+tmux attach -t session_name
+```
+
+To attach to the last session you were working on:
+```bash
+tmux a
+```
+
+## Creating and Managing Windows
+
+To create a new window within a session:
+```
+Ctrl+b c
+```
+
+To switch between windows:
+```
+Ctrl+b n  # Next window
+Ctrl+b p  # Previous window
+Ctrl+b <window_number>  # Switch to a specific window by number
+```
+
+To rename the current window:
+```
+Ctrl+b ,
+```
+
+## Creating and Managing Panes
+
+To split the current window horizontally:
+```
+Ctrl+b "
+```
+
+To split the current window vertically:
+```
+Ctrl+b %
+```
+
+To navigate between panes:
+```
+Ctrl+b arrow_key  # Use arrow keys to navigate
+```
+
+To resize panes:
+```
+Ctrl+b :resize-pane -D  # Resize down
+Ctrl+b :resize-pane -U  # Resize up
+Ctrl+b :resize-pane -L  # Resize left
+Ctrl+b :resize-pane -R  # Resize right
+```
+
+## Synchronizing Panes
+
+To send the same command to multiple panes simultaneously:
+
+Enter command mode:
+```
+Ctrl+b :
+```
+
+Type:
+```
+setw synchronize-panes on
+```
+
+To turn off synchronization:
+```
+setw synchronize-panes off
+```
+
+## Copy Mode
+
+To enter copy mode:
+```
+Ctrl+b [
+```
+
+To scroll up and down:
+```
+Up/Down arrow keys or PgUp/PgDn
+```
+
+To start selecting text:
+```
+Space
+```
+
+To copy the selected text:
+```
+Enter
+```
+
+To paste the copied text:
+```
+Ctrl+b ]
+```
+
+## Customizing TMUX
+
+TMUX can be customized via the `.tmux.conf` file located in your home directory. Here are some common customizations:
+
+Set prefix key to Ctrl+a:
+```bash
+set -g prefix C-a
+unbind C-b
+bind C-a send-prefix
+```
+
+Enable mouse support:
+```bash
+set -g mouse on
+```
+
+Change status bar color:
+```bash
+set -g status-bg colour235
+set -g status-fg colour136
+```
+
+## Useful Commands
+
+Kill a specific window:
+```
+Ctrl+b &
+```
+
+Kill a specific pane:
+```
+Ctrl+b x
+```
+
+Kill a TMUX session:
+```bash
+tmux kill-session -t session_name
+```
+
+## Conclusion
+
+TMUX is an incredibly versatile tool that can greatly enhance your productivity by allowing you to manage multiple terminal sessions efficiently. With this guide, you should be able to get started with TMUX and use its basic features. As you become more comfortable with TMUX, you can explore its extensive customization options to tailor it to your workflow.

@@ -2,6 +2,7 @@
   "title": "Networking",
   "description": "Network tools and services",
   "pages": [
-    "cloudflare-tunnels"
+    "cloudflare-tunnels",
+    "tunnels-ha"
   ]
 }

@@ -1,0 +1,141 @@
+---
+title: "Cloudflared Tunnels with Ingress (Web & Docker) and High-Availability"
+description: "Guide for setting up Cloudflare Tunnels with ingress rules for both normal web services and Docker, including HA."
+---
+
+# Cloudflared Tunnels with Ingress (Web & Docker) and High-Availability
+
+Cloudflare Tunnel allows exposing internal services securely using **ingress rules**. You can route traffic to:
+
+- **Normal web services** (running directly on host)
+- **Docker services** (using Docker service/container names)
+
+This guide covers **single-node** and **high-availability (HA)** deployments.
+
+---
+
+## Prerequisites
+
+- Cloudflare account with your domain added
+- `cloudflared` installed (or Docker image)
+- Local services or Docker services running
+
+---
+
+## 1. Authenticate and Create Tunnel
+
+```bash
+# Login and authenticate with Cloudflare
+cloudflared login
+
+# Create a tunnel
+cloudflared tunnel create my-tunnel
+```
+
+Note the Tunnel ID and credentials JSON path.
+
+## 2. Ingress Configuration
+
+Create `~/.cloudflared/config.yml` (for host services) or mount in Docker (for containerized services):
+
+```yaml
+tunnel: <TUNNEL_ID>
+credentials-file: /etc/cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # Normal web service (running on host)
+  - hostname: web.example.com
+    service: http://localhost:8080
+  
+  # Docker services
+  - hostname: app.example.com
+    service: http://web:80
+  - hostname: api.example.com
+    service: http://api:5000
+  
+  # Default fallback
+  - service: http_status:404
+```
+
+- `localhost` points to host services
+- Docker service names point to containers in the same network
+
+## 3. Running the Tunnel
+
+### Option 1: Host Service
+
+```bash
+cloudflared tunnel run my-tunnel
+```
+
+### Option 2: Docker Service
+
+Use Docker Compose:
+
+```yaml
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    depends_on:
+      - web
+      - api
+    networks:
+      - app-network
+    volumes:
+      - ./config.yml:/etc/cloudflared/config.yml
+    restart: unless-stopped
+```
+
+```bash
+docker-compose up -d cloudflared
+```
+
+## 4. High-Availability (HA) Setup
+
+HA ensures services remain available if one Cloudflared instance or node fails.
+
+### Step 1: Share Tunnel Credentials
+
+Copy the JSON credentials file to all nodes.
+
+### Step 2: Deploy Cloudflared on Each Node
+
+- Use same `config.yml`
+- Ensure Docker service names or host services are reachable
+- Use Docker Compose or systemd to run Cloudflared
+
+### Step 3: Load Balancing
+
+- Configure Cloudflare Load Balancer
+- Add HA nodes as origin pools
+- Use health checks to automatically failover
+
+## 5. Useful Commands
+
+```bash
+cloudflared tunnel list
+cloudflared tunnel route dns <TUNNEL_NAME> example.com
+cloudflared tunnel logs my-tunnel
+cloudflared tunnel delete my-tunnel
+```
+
+For Docker:
+
+```bash
+docker exec -it cloudflared cloudflared tunnel list
+docker exec -it cloudflared cloudflared tunnel logs my-tunnel
+```
+
+## References
+
+- [Cloudflare Tunnels & Ingress](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/tunnel-guide/)
+- [Cloudflare Load Balancing](https://developers.cloudflare.com/load-balancing/)
+- [Docker Compose Networking](https://docs.docker.com/compose/networking/)
+
+This **combined MDX doc** now supports:
+
+1. Normal host-based web services (`localhost`)
+2. Dockerized services using service/container names
+3. HA setup with multiple nodes
+4. Commands and references

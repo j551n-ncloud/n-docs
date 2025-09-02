@@ -9,7 +9,7 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
       {...baseOptions()}
       sidebar={{
         tabs: {
-          transform: (option, node) => {
+          transform: (option) => {
             // Add icons to tabs based on their title
             if (option.title === 'Documentation') {
               return {

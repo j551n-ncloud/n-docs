@@ -8,7 +8,7 @@ export default function Layout({ children }: LayoutProps<'/'>) {
       links={[
         {
           text: 'Documentation',
-          url: '/docs',
+          url: '/docs/documentation',
         },
         {
           text: 'Homepage',
