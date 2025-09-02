@@ -1,0 +1,940 @@
+---
+title: Clustering & High Availability
+description: Complete guide to Proxmox VE clustering, high availability, and failover configuration
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Clustering & High Availability
+
+Proxmox VE clustering provides centralized management, resource sharing, and high availability for your virtualized infrastructure. This guide covers cluster setup, configuration, and HA implementation.
+
+## Clustering Overview
+
+<Callout type="info">
+Proxmox VE clusters enable centralized management of multiple nodes with shared configuration, live migration, and high availability features.
+</Callout>
+
+### Cluster Benefits
+
+<Files>
+  <File name="Centralized Management">
+    - Single web interface for all nodes
+    - Unified configuration management
+    - Centralized user authentication
+    - Shared storage configuration
+  </File>
+  <File name="Resource Sharing">
+    - Live migration between nodes
+    - Load balancing capabilities
+    - Shared storage pools
+    - Distributed backup management
+  </File>
+  <File name="High Availability">
+    - Automatic failover
+    - Service monitoring
+    - Fencing mechanisms
+    - Resource constraints
+  </File>
+</Files>
+
+### Cluster Requirements
+
+- **Minimum 3 nodes** for proper quorum
+- **Reliable network** with low latency (less than 5ms recommended)
+- **Shared storage** for VM/CT migration
+- **Time synchronization** (NTP) across all nodes
+- **Identical Proxmox versions** on all nodes
+
+## Cluster Setup
+
+### Network Planning
+
+<Callout type="warn">
+Plan your cluster network carefully. Changes to cluster network configuration after setup can be complex and disruptive.
+</Callout>
+
+<Tabs items={['Single Network', 'Dedicated Cluster Network', 'Redundant Networks']}>
+<Tab value="Single Network">
+
+**Simple Setup** (not recommended for production):
+```bash
+# All traffic on single network
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports eth0
+    bridge-stp off
+    bridge-fd 0
+```
+
+</Tab>
+<Tab value="Dedicated Cluster Network">
+
+**Recommended Setup**:
+```bash
+# Management network
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports eth0
+    bridge-stp off
+    bridge-fd 0
+
+# Dedicated cluster network
+auto eth1
+iface eth1 inet static
+    address 10.0.0.100/24
+    # No gateway - cluster communication only
+```
+
+</Tab>
+<Tab value="Redundant Networks">
+
+**Production Setup with Redundancy**:
+```bash
+# Bonded management network
+auto bond0
+iface bond0 inet manual
+    bond-slaves eth0 eth1
+    bond-miimon 100
+    bond-mode active-backup
+
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports bond0
+    bridge-stp off
+    bridge-fd 0
+
+# Dedicated cluster network with redundancy
+auto bond1
+iface bond1 inet static
+    address 10.0.0.100/24
+    bond-slaves eth2 eth3
+    bond-miimon 100
+    bond-mode active-backup
+```
+
+</Tab>
+</Tabs>
+
+### Creating a Cluster
+
+<Tabs items={['Web Interface', 'Command Line']}>
+<Tab value="Web Interface">
+
+**On the first node:**
+1. **Datacenter** → **Cluster** → **Create Cluster**
+2. Configure cluster settings:
+   - **Cluster Name**: Choose descriptive name
+   - **Cluster Network**: Select network for cluster communication
+   - **Link 0**: Primary cluster network
+   - **Link 1**: Optional secondary network for redundancy
+
+**On additional nodes:**
+1. **Datacenter** → **Cluster** → **Join Cluster**
+2. Enter cluster information:
+   - **Information**: Cluster join information from first node
+   - **Password**: Root password of existing cluster node
+   - **Fingerprint**: Verify cluster certificate fingerprint
+
+</Tab>
+<Tab value="Command Line">
+
+**Initialize cluster on first node:**
+```bash
+# Create cluster
+pvecm create production-cluster
+
+# Optional: Specify cluster network
+pvecm create production-cluster --bindnet0_addr 10.0.0.100
+
+# Get cluster information for joining
+pvecm status
+```
+
+**Join additional nodes:**
+```bash
+# Join cluster from additional nodes
+pvecm add 10.0.0.100
+
+# Verify cluster membership
+pvecm status
+pvecm nodes
+```
+
+</Tab>
+</Tabs>
+
+### Cluster Configuration
+
+#### Corosync Configuration
+
+```bash
+# Edit /etc/pve/corosync.conf
+totem {
+    version: 2
+    cluster_name: production-cluster
+    transport: knet
+    crypto_cipher: aes256
+    crypto_hash: sha256
+}
+
+nodelist {
+    node {
+        ring0_addr: 10.0.0.100
+        name: pve-node1
+        nodeid: 1
+    }
+    node {
+        ring0_addr: 10.0.0.101
+        name: pve-node2
+        nodeid: 2
+    }
+    node {
+        ring0_addr: 10.0.0.102
+        name: pve-node3
+        nodeid: 3
+    }
+}
+
+quorum {
+    provider: corosync_votequorum
+    two_node: 0
+}
+
+logging {
+    to_logfile: yes
+    logfile: /var/log/corosync/corosync.log
+    to_syslog: yes
+}
+```
+
+#### Cluster Network Redundancy
+
+<Tabs items={['Dual Ring Setup', 'Link Configuration', 'Failover Testing']}>
+<Tab value="Dual Ring Setup">
+
+```bash
+# Configure redundant cluster links
+totem {
+    version: 2
+    cluster_name: production-cluster
+    transport: knet
+    
+    # Multiple links for redundancy
+    interface {
+        ringnumber: 0
+        bindnetaddr: 10.0.0.0
+        mcastaddr: 239.255.1.1
+        mcastport: 5405
+        ttl: 1
+    }
+    
+    interface {
+        ringnumber: 1
+        bindnetaddr: 10.0.1.0
+        mcastaddr: 239.255.1.2
+        mcastport: 5405
+        ttl: 1
+    }
+}
+```
+
+</Tab>
+<Tab value="Link Configuration">
+
+```bash
+# Node configuration with multiple links
+nodelist {
+    node {
+        ring0_addr: 10.0.0.100
+        ring1_addr: 10.0.1.100
+        name: pve-node1
+        nodeid: 1
+    }
+    node {
+        ring0_addr: 10.0.0.101
+        ring1_addr: 10.0.1.101
+        name: pve-node2
+        nodeid: 2
+    }
+}
+```
+
+</Tab>
+<Tab value="Failover Testing">
+
+```bash
+# Test cluster communication
+corosync-cfgtool -s
+
+# Check cluster membership
+corosync-cmapctl | grep members
+
+# Monitor cluster status
+crm_mon -1
+
+# Test link failover
+# Disconnect primary cluster network and verify secondary takes over
+```
+
+</Tab>
+</Tabs>
+
+## Shared Storage Configuration
+
+### Storage Requirements for Clustering
+
+<Callout type="info">
+Shared storage is essential for live migration and high availability. All cluster nodes must have access to the same storage.
+</Callout>
+
+<Files>
+  <File name="Supported Shared Storage">
+    - NFS (Network File System)
+    - CIFS/SMB (Windows shares)
+    - iSCSI (Internet SCSI)
+    - Ceph RBD (Distributed storage)
+    - GlusterFS (Distributed filesystem)
+    - ZFS over iSCSI
+  </File>
+  <File name="Storage Considerations">
+    - Performance requirements
+    - Redundancy and availability
+    - Backup and recovery
+    - Scalability needs
+  </File>
+</Files>
+
+### NFS Shared Storage
+
+<Tabs items={['NFS Server Setup', 'Proxmox Configuration', 'Performance Tuning']}>
+<Tab value="NFS Server Setup">
+
+**On NFS server:**
+```bash
+# Install NFS server
+apt update && apt install nfs-kernel-server
+
+# Create export directories
+mkdir -p /srv/nfs/proxmox/{images,backup,iso,templates}
+
+# Configure exports (/etc/exports)
+/srv/nfs/proxmox 10.0.0.0/24(rw,sync,no_subtree_check,no_root_squash)
+
+# Apply configuration
+exportfs -ra
+systemctl restart nfs-kernel-server
+systemctl enable nfs-kernel-server
+
+# Verify exports
+showmount -e localhost
+```
+
+</Tab>
+<Tab value="Proxmox Configuration">
+
+**Add NFS storage to cluster:**
+```bash
+# Via command line
+pvesm add nfs shared-storage \
+  --server 192.168.1.200 \
+  --export /srv/nfs/proxmox \
+  --content images,iso,vztmpl,backup \
+  --options vers=3,hard,intr
+
+# Verify storage
+pvesm status shared-storage
+```
+
+**Via Web Interface:**
+1. **Datacenter** → **Storage** → **Add** → **NFS**
+2. Configure NFS settings and content types
+
+</Tab>
+<Tab value="Performance Tuning">
+
+```bash
+# Optimize NFS mount options
+pvesm set shared-storage --options vers=3,hard,intr,rsize=32768,wsize=32768
+
+# Client-side tuning
+echo 'net.core.rmem_default = 262144' >> /etc/sysctl.conf
+echo 'net.core.rmem_max = 16777216' >> /etc/sysctl.conf
+echo 'net.core.wmem_default = 262144' >> /etc/sysctl.conf
+echo 'net.core.wmem_max = 16777216' >> /etc/sysctl.conf
+
+sysctl -p
+```
+
+</Tab>
+</Tabs>
+
+### Ceph Distributed Storage
+
+<Tabs items={['Ceph Installation', 'Pool Configuration', 'RBD Integration']}>
+<Tab value="Ceph Installation">
+
+```bash
+# Install Ceph on all nodes
+pveceph install --version quincy
+
+# Initialize Ceph cluster (on first node)
+pveceph init --network 10.0.0.0/24
+
+# Create monitors (on each node)
+pveceph mon create
+
+# Create manager (on each node)
+pveceph mgr create
+
+# Check cluster status
+ceph status
+```
+
+</Tab>
+<Tab value="Pool Configuration">
+
+```bash
+# Create OSD (on each node with storage)
+pveceph osd create /dev/sdb
+
+# Create storage pools
+pveceph pool create vm-pool --size 3 --min_size 2
+pveceph pool create backup-pool --size 2 --min_size 1
+
+# Verify pool creation
+ceph osd pool ls
+ceph df
+```
+
+</Tab>
+<Tab value="RBD Integration">
+
+```bash
+# Add Ceph RBD storage to Proxmox
+pvesm add rbd ceph-vm --pool vm-pool --content images,rootdir
+pvesm add rbd ceph-backup --pool backup-pool --content backup
+
+# Verify Ceph storage
+pvesm status
+ceph health
+```
+
+</Tab>
+</Tabs>
+
+## High Availability Configuration
+
+### HA Manager Overview
+
+<Callout type="tip">
+Proxmox HA Manager monitors services and automatically restarts or relocates them in case of node failures.
+</Callout>
+
+### HA Groups Configuration
+
+<Tabs items={['Web Interface', 'Command Line', 'Advanced Configuration']}>
+<Tab value="Web Interface">
+
+**Create HA Groups:**
+1. **Datacenter** → **HA** → **Groups** → **Add**
+2. Configure group settings:
+   - **ID**: Group identifier
+   - **Nodes**: Node priorities (higher number = higher priority)
+   - **Restricted**: Limit to specific nodes
+   - **No Failback**: Prevent automatic failback
+
+**Example Configuration:**
+- **Group**: production
+- **Nodes**: node1:3,node2:2,node3:1
+- **Restricted**: Yes (production workloads only)
+
+</Tab>
+<Tab value="Command Line">
+
+```bash
+# Create HA groups
+ha-manager groupadd production --nodes "node1:3,node2:2,node3:1" --restricted
+
+ha-manager groupadd development --nodes "node2:2,node3:2" --nofailback
+
+# List HA groups
+ha-manager groupconfig
+```
+
+</Tab>
+<Tab value="Advanced Configuration">
+
+```bash
+# Complex group configuration
+ha-manager groupadd critical \
+  --nodes "node1:100,node2:90,node3:80" \
+  --restricted \
+  --comment "Critical production services"
+
+# Group with specific constraints
+ha-manager groupadd gpu-nodes \
+  --nodes "gpu-node1:2,gpu-node2:1" \
+  --restricted \
+  --comment "GPU-enabled nodes only"
+```
+
+</Tab>
+</Tabs>
+
+### HA Resource Configuration
+
+<Tabs items={['VM Configuration', 'Container Configuration', 'Service Monitoring']}>
+<Tab value="VM Configuration">
+
+**Add VMs to HA:**
+```bash
+# Add VM to HA with basic settings
+ha-manager add vm:100 --state started --group production
+
+# Advanced HA configuration
+ha-manager add vm:101 \
+  --state started \
+  --group production \
+  --max_restart 3 \
+  --max_relocate 1 \
+  --comment "Critical database server"
+
+# Configure startup delay
+ha-manager set vm:100 --state started --max_restart 2
+```
+
+**Via Web Interface:**
+1. **Datacenter** → **HA** → **Resources** → **Add**
+2. Configure HA resource settings
+
+</Tab>
+<Tab value="Container Configuration">
+
+```bash
+# Add container to HA
+ha-manager add ct:200 --state started --group development
+
+# Container with specific requirements
+ha-manager add ct:201 \
+  --state started \
+  --group production \
+  --max_restart 5 \
+  --comment "Web application container"
+```
+
+</Tab>
+<Tab value="Service Monitoring">
+
+```bash
+# Check HA status
+ha-manager status
+
+# Monitor HA resources
+ha-manager config
+
+# View HA logs
+journalctl -u pve-ha-lrm
+journalctl -u pve-ha-crm
+```
+
+</Tab>
+</Tabs>
+
+### Fencing Configuration
+
+<Callout type="warn">
+Proper fencing is crucial for preventing split-brain scenarios and ensuring data integrity in HA clusters.
+</Callout>
+
+<Tabs items={['IPMI Fencing', 'Network Fencing', 'Custom Fencing']}>
+<Tab value="IPMI Fencing">
+
+```bash
+# Configure IPMI fencing
+ha-manager fence-add ipmi-node1 \
+  --type ipmi \
+  --ip 192.168.100.101 \
+  --username admin \
+  --password secret
+
+# Test IPMI fencing
+fence_ipmilan -a 192.168.100.101 -l admin -p secret -o status
+
+# Enable fencing for group
+ha-manager groupset production --fence ipmi
+```
+
+</Tab>
+<Tab value="Network Fencing">
+
+```bash
+# Configure network-based fencing
+ha-manager fence-add network-fence \
+  --type network \
+  --ip 192.168.1.101 \
+  --username admin \
+  --password secret
+
+# SSH-based fencing
+ha-manager fence-add ssh-fence \
+  --type ssh \
+  --ip 192.168.1.101 \
+  --username root
+```
+
+</Tab>
+<Tab value="Custom Fencing">
+
+```bash
+# Custom fencing script
+#!/bin/bash
+# /usr/local/bin/custom-fence.sh
+
+NODE=$1
+ACTION=$2
+
+case $ACTION in
+    "off")
+        # Custom power-off logic
+        ssh root@$NODE "shutdown -h now"
+        ;;
+    "on")
+        # Custom power-on logic
+        wakeonlan 00:11:22:33:44:55
+        ;;
+    "status")
+        # Check node status
+        ping -c 1 $NODE >/dev/null 2>&1
+        ;;
+esac
+```
+
+</Tab>
+</Tabs>
+
+## Live Migration
+
+### Migration Requirements
+
+<Files>
+  <File name="Prerequisites">
+    - Shared storage for VM/CT data
+    - Compatible CPU types
+    - Sufficient resources on target node
+    - Network connectivity between nodes
+  </File>
+  <File name="Migration Types">
+    - Online (live) migration
+    - Offline migration
+    - Storage migration
+    - Cross-cluster migration
+  </File>
+</Files>
+
+### Migration Configuration
+
+<Tabs items={['Migration Settings', 'Network Configuration', 'Performance Tuning']}>
+<Tab value="Migration Settings">
+
+```bash
+# Configure migration settings in datacenter.cfg
+echo 'migration: secure,network=10.0.0.0/24' >> /etc/pve/datacenter.cfg
+
+# Allow insecure migration (faster, less secure)
+echo 'migration_unsecure: 1' >> /etc/pve/datacenter.cfg
+
+# Set bandwidth limit (KB/s)
+echo 'bwlimit: migration=100000' >> /etc/pve/datacenter.cfg
+```
+
+**Via Web Interface:**
+1. **Datacenter** → **Options** → **Migration**
+2. Configure migration type and network
+
+</Tab>
+<Tab value="Network Configuration">
+
+```bash
+# Dedicated migration network
+auto eth2
+iface eth2 inet static
+    address 10.0.2.100/24
+    # Migration traffic only
+
+# Configure migration to use specific network
+echo 'migration: secure,network=10.0.2.0/24' >> /etc/pve/datacenter.cfg
+```
+
+</Tab>
+<Tab value="Performance Tuning">
+
+```bash
+# Optimize migration performance
+echo 'migration: secure,network=10.0.0.0/24' >> /etc/pve/datacenter.cfg
+echo 'bwlimit: migration=1000000' >> /etc/pve/datacenter.cfg  # 1GB/s
+echo 'bwlimit: clone=500000' >> /etc/pve/datacenter.cfg      # 500MB/s
+echo 'bwlimit: default=100000' >> /etc/pve/datacenter.cfg    # 100MB/s
+
+# CPU optimization for migration
+echo 'cpu: host' >> /etc/pve/datacenter.cfg
+```
+
+</Tab>
+</Tabs>
+
+### Performing Migrations
+
+<Tabs items={['Live Migration', 'Offline Migration', 'Storage Migration']}>
+<Tab value="Live Migration">
+
+```bash
+# Live migrate VM
+qm migrate 100 node2 --online
+
+# Live migrate with specific options
+qm migrate 100 node2 --online --with-local-disks --targetstorage shared-storage
+
+# Migrate container
+pct migrate 200 node2 --online --restart
+```
+
+**Via Web Interface:**
+1. **Right-click VM/CT** → **Migrate**
+2. Select target node and options
+
+</Tab>
+<Tab value="Offline Migration">
+
+```bash
+# Offline migration (VM stopped)
+qm migrate 100 node2
+
+# Migrate with storage
+qm migrate 100 node2 --with-local-disks --targetstorage local-lvm
+```
+
+</Tab>
+<Tab value="Storage Migration">
+
+```bash
+# Move VM disk to different storage
+qm move-disk 100 scsi0 new-storage
+
+# Move with format conversion
+qm move-disk 100 scsi0 new-storage --format qcow2
+```
+
+</Tab>
+</Tabs>
+
+## Cluster Maintenance
+
+### Node Maintenance
+
+<Tabs items={['Planned Maintenance', 'Node Evacuation', 'Cluster Updates']}>
+<Tab value="Planned Maintenance">
+
+```bash
+# Put node in maintenance mode
+pvecm expected 2  # Reduce expected votes temporarily
+
+# Migrate all VMs/CTs from node
+for vm in $(qm list | awk 'NR>1 {print $1}'); do
+    qm migrate $vm node2 --online
+done
+
+# Shutdown node safely
+shutdown -h now
+```
+
+</Tab>
+<Tab value="Node Evacuation">
+
+```bash
+# Automated node evacuation script
+#!/bin/bash
+NODE_TO_EVACUATE="node1"
+TARGET_NODE="node2"
+
+# Migrate all VMs
+qm list | grep $NODE_TO_EVACUATE | awk '{print $1}' | while read vmid; do
+    echo "Migrating VM $vmid to $TARGET_NODE"
+    qm migrate $vmid $TARGET_NODE --online
+done
+
+# Migrate all containers
+pct list | grep $NODE_TO_EVACUATE | awk '{print $1}' | while read ctid; do
+    echo "Migrating CT $ctid to $TARGET_NODE"
+    pct migrate $ctid $TARGET_NODE --online --restart
+done
+```
+
+</Tab>
+<Tab value="Cluster Updates">
+
+```bash
+# Update cluster nodes one by one
+# 1. Migrate VMs/CTs away from node
+# 2. Update node packages
+apt update && apt upgrade
+
+# 3. Reboot if kernel updated
+reboot
+
+# 4. Verify node rejoins cluster
+pvecm status
+
+# 5. Repeat for next node
+```
+
+</Tab>
+</Tabs>
+
+### Backup and Recovery
+
+```bash
+# Backup cluster configuration
+tar -czf cluster-backup-$(date +%Y%m%d).tar.gz /etc/pve/
+
+# Backup individual node configuration
+tar -czf node-backup-$(date +%Y%m%d).tar.gz \
+  /etc/pve/nodes/$(hostname)/ \
+  /etc/network/interfaces \
+  /etc/hosts
+
+# Restore cluster configuration (if needed)
+tar -xzf cluster-backup-20240209.tar.gz -C /
+systemctl restart pve-cluster
+```
+
+## Troubleshooting
+
+### Common Cluster Issues
+
+<Callout type="warn">
+Always backup cluster configuration before attempting major troubleshooting steps.
+</Callout>
+
+<Tabs items={['Quorum Issues', 'Network Problems', 'Split-Brain Recovery']}>
+<Tab value="Quorum Issues">
+
+```bash
+# Check cluster status
+pvecm status
+corosync-quorumtool -s
+
+# Temporary quorum fix (emergency only)
+pvecm expected 1
+
+# Permanent fix: add more nodes or configure QDevice
+# Install corosync-qdevice on external system
+apt install corosync-qdevice
+
+# Configure QDevice on cluster
+pvecm qdevice setup 192.168.1.250
+```
+
+</Tab>
+<Tab value="Network Problems">
+
+```bash
+# Test cluster communication
+corosync-cfgtool -s
+
+# Check cluster membership
+corosync-cmapctl | grep members
+
+# Monitor cluster traffic
+tcpdump -i eth1 port 5405
+
+# Restart cluster services
+systemctl restart corosync
+systemctl restart pve-cluster
+```
+
+</Tab>
+<Tab value="Split-Brain Recovery">
+
+```bash
+# Identify split-brain condition
+pvecm status  # Check on all nodes
+
+# Stop cluster services on minority partition
+systemctl stop pve-cluster
+systemctl stop corosync
+
+# On majority partition, update expected votes
+pvecm expected 2
+
+# Rejoin minority nodes
+systemctl start corosync
+systemctl start pve-cluster
+
+# Verify cluster recovery
+pvecm status
+```
+
+</Tab>
+</Tabs>
+
+### Performance Monitoring
+
+```bash
+# Monitor cluster performance
+#!/bin/bash
+# cluster-monitor.sh
+
+while true; do
+    echo "=== Cluster Status $(date) ==="
+    pvecm status
+    
+    echo "=== Resource Usage ==="
+    for node in node1 node2 node3; do
+        echo "Node: $node"
+        ssh $node "uptime; free -h | head -2; df -h / | tail -1"
+        echo
+    done
+    
+    sleep 60
+done
+```
+
+## Best Practices
+
+### Cluster Design
+
+- **Odd number of nodes**: Prevents split-brain scenarios
+- **Dedicated cluster network**: Isolate cluster traffic
+- **Redundant networking**: Multiple network paths
+- **Shared storage**: Essential for migration and HA
+- **Time synchronization**: NTP on all nodes
+- **Regular backups**: Cluster configuration and data
+
+### Security Considerations
+
+- **Network isolation**: Separate cluster and management networks
+- **Firewall rules**: Restrict cluster communication ports
+- **Certificate management**: Regular certificate updates
+- **Access control**: Limit cluster administration access
+- **Monitoring**: Continuous cluster health monitoring
+
+### Operational Procedures
+
+- **Change management**: Document all cluster changes
+- **Testing procedures**: Regular failover testing
+- **Monitoring alerts**: Automated cluster health alerts
+- **Maintenance windows**: Scheduled maintenance procedures
+- **Recovery procedures**: Documented disaster recovery plans
+
+<Callout type="info">
+Proper cluster planning and maintenance ensure reliable, high-performance virtualization infrastructure with minimal downtime.
+</Callout>

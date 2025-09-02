@@ -1,6 +1,25 @@
 {
-  "title": "Proxmox",
+  "title": "Proxmox VE",
+  "description": "Complete Proxmox virtualization platform guide",
+  "icon": "Server",
+  "root": true,
   "pages": [
-    "index"
+    "---Getting Started---",
+    "index",
+    "installation",
+    "post-install",
+    "---Configuration---",
+    "network-config",
+    "storage-management",
+    "---Virtualization---",
+    "vm-management",
+    "container-management",
+    "---Advanced---",
+    "backup-strategies",
+    "clustering-ha",
+    "security-hardening",
+    "---Tools & Utilities---",
+    "essential-tools",
+    "best-practices"
   ]
 }

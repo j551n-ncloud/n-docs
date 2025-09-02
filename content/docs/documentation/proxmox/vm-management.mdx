@@ -1,0 +1,467 @@
+---
+title: Virtual Machine Management
+description: Complete guide to creating, configuring, and managing VMs in Proxmox VE
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Virtual Machine Management
+
+Proxmox VE provides powerful VM management capabilities with support for various operating systems and advanced features like snapshots, migration, and high availability.
+
+## Creating Virtual Machines
+
+### VM Creation Wizard
+
+<Tabs items={['Web Interface', 'Command Line']}>
+<Tab value="Web Interface">
+
+1. **Node** → **Create VM**
+2. **General Tab**:
+   - **VM ID**: Unique identifier (100-999999)
+   - **Name**: Descriptive VM name
+   - **Resource Pool**: Optional organization
+
+3. **OS Tab**:
+   - **ISO Image**: Select installation media
+   - **Guest OS Type**: Linux, Windows, or Other
+
+4. **System Tab**:
+   - **Machine**: q35 (recommended)
+   - **BIOS**: OVMF (UEFI) or SeaBIOS
+   - **SCSI Controller**: VirtIO SCSI single
+
+5. **Hard Disk Tab**:
+   - **Storage**: Select storage location
+   - **Disk Size**: Allocate appropriate space
+   - **Format**: qcow2 or raw
+
+6. **CPU Tab**:
+   - **Sockets/Cores**: Configure CPU allocation
+   - **Type**: host or kvm64
+
+7. **Memory Tab**:
+   - **Memory**: RAM allocation in MB
+   - **Ballooning**: Enable for dynamic allocation
+
+8. **Network Tab**:
+   - **Bridge**: vmbr0 (default)
+   - **Model**: VirtIO (paravirt)
+
+</Tab>
+<Tab value="Command Line">
+
+```bash
+# Create VM with basic configuration
+qm create 100 \
+  --name "ubuntu-server" \
+  --memory 2048 \
+  --cores 2 \
+  --net0 virtio,bridge=vmbr0 \
+  --scsi0 local-lvm:32 \
+  --ide2 local:iso/ubuntu-22.04.iso,media=cdrom \
+  --boot order=ide2 \
+  --ostype l26
+
+# Start VM
+qm start 100
+```
+
+</Tab>
+</Tabs>
+
+### VM Templates
+
+Create reusable VM templates:
+
+<Callout type="tip">
+Templates save time and ensure consistent VM configurations across your infrastructure.
+</Callout>
+
+1. **Install and configure base VM**
+2. **Clean up** (remove logs, SSH keys, etc.)
+3. **Shutdown VM**
+4. **Convert to template**: `qm template 100`
+5. **Clone from template**: `qm clone 100 101 --name new-vm`
+
+## VM Configuration
+
+### Hardware Configuration
+
+<Tabs items={['CPU Settings', 'Memory Settings', 'Storage Settings']}>
+<Tab value="CPU Settings">
+
+**CPU Types**:
+- **host**: Best performance, limited migration
+- **kvm64**: Good compatibility
+- **Haswell/Broadwell**: Specific CPU features
+
+**Advanced Options**:
+```bash
+# Enable CPU hotplug
+qm set 100 --hotplug cpu,memory,disk,network
+
+# Set CPU limit (50% of host)
+qm set 100 --cpulimit 0.5
+
+# NUMA configuration
+qm set 100 --numa 1
+```
+
+</Tab>
+<Tab value="Memory Settings">
+
+**Memory Types**:
+- **Static**: Fixed allocation
+- **Ballooning**: Dynamic allocation
+- **Shares**: Priority weighting
+
+```bash
+# Set memory with ballooning
+qm set 100 --memory 4096 --balloon 2048
+
+# Memory shares (higher = more priority)
+qm set 100 --shares 1000
+```
+
+</Tab>
+<Tab value="Storage Settings">
+
+**Disk Controllers**:
+- **VirtIO SCSI**: Best performance
+- **SATA**: Good compatibility
+- **IDE**: Legacy support
+
+```bash
+# Add additional disk
+qm set 100 --scsi1 local-lvm:50
+
+# Enable SSD emulation
+qm set 100 --scsi0 local-lvm:vm-100-disk-0,ssd=1
+
+# Enable discard for thin provisioning
+qm set 100 --scsi0 local-lvm:vm-100-disk-0,discard=on
+```
+
+</Tab>
+</Tabs>
+
+### Network Configuration
+
+<Files>
+  <File name="Standard Bridge">
+    - **Model**: VirtIO (paravirt)
+    - **Bridge**: vmbr0
+    - **VLAN**: Optional VLAN tag
+    - **Rate Limit**: Bandwidth limiting
+  </File>
+  <File name="Advanced Options">
+    - **Multiqueue**: Multiple TX/RX queues
+    - **Firewall**: Enable VM-level firewall
+    - **Link Down**: Start with network disabled
+  </File>
+</Files>
+
+```bash
+# Configure network with VLAN
+qm set 100 --net0 virtio,bridge=vmbr0,tag=100
+
+# Enable multiqueue (cores/2, max 8)
+qm set 100 --net0 virtio,bridge=vmbr0,queues=4
+
+# Set bandwidth limit (10 Mbps)
+qm set 100 --net0 virtio,bridge=vmbr0,rate=10
+```
+
+## VM Operations
+
+### Basic Operations
+
+<Tabs items={['Power Management', 'Console Access', 'Migration']}>
+<Tab value="Power Management">
+
+```bash
+# Start VM
+qm start 100
+
+# Shutdown VM (graceful)
+qm shutdown 100
+
+# Stop VM (force)
+qm stop 100
+
+# Reboot VM
+qm reboot 100
+
+# Suspend VM
+qm suspend 100
+
+# Resume VM
+qm resume 100
+```
+
+</Tab>
+<Tab value="Console Access">
+
+**Console Types**:
+- **noVNC**: Web-based console
+- **SPICE**: Enhanced graphics protocol
+- **Serial**: Text-based console
+
+```bash
+# Access via command line
+qm terminal 100
+
+# VNC console
+qm vncproxy 100
+
+# Monitor console
+qm monitor 100
+```
+
+</Tab>
+<Tab value="Migration">
+
+**Live Migration**:
+```bash
+# Migrate to another node
+qm migrate 100 proxmox-node2
+
+# Migrate with specific options
+qm migrate 100 proxmox-node2 --online --with-local-disks
+```
+
+**Offline Migration**:
+```bash
+# Migrate stopped VM
+qm migrate 100 proxmox-node2 --with-local-disks
+```
+
+</Tab>
+</Tabs>
+
+### Snapshot Management
+
+<Callout type="info">
+Snapshots capture VM state at a specific point in time, enabling quick rollbacks and testing scenarios.
+</Callout>
+
+```bash
+# Create snapshot
+qm snapshot 100 pre-update --description "Before system update"
+
+# List snapshots
+qm listsnapshot 100
+
+# Rollback to snapshot
+qm rollback 100 pre-update
+
+# Delete snapshot
+qm delsnapshot 100 pre-update
+```
+
+### Backup and Restore
+
+<Tabs items={['Manual Backup', 'Scheduled Backup', 'Restore']}>
+<Tab value="Manual Backup">
+
+```bash
+# Create backup
+vzdump 100 --storage local-backup --mode snapshot --compress gzip
+
+# Backup with specific options
+vzdump 100 --storage nfs-backup --mode suspend --exclude-path /tmp --exclude-path /var/log
+```
+
+</Tab>
+<Tab value="Scheduled Backup">
+
+Via web interface:
+1. **Datacenter** → **Backup**
+2. **Add** backup job
+3. Configure VMs, schedule, and retention
+
+Via command line:
+```bash
+# Edit crontab
+crontab -e
+
+# Add backup job (daily at 2 AM)
+0 2 * * * vzdump --all --storage local-backup --mode snapshot --quiet 1
+```
+
+</Tab>
+<Tab value="Restore">
+
+```bash
+# List available backups
+ls /var/lib/vz/dump/
+
+# Restore VM
+qmrestore /var/lib/vz/dump/vzdump-qemu-100-2024_02_09-02_00_15.vma.gz 101
+
+# Restore with different storage
+qmrestore /var/lib/vz/dump/vzdump-qemu-100-2024_02_09-02_00_15.vma.gz 101 --storage local-lvm
+```
+
+</Tab>
+</Tabs>
+
+## Advanced VM Features
+
+### Cloud-Init Integration
+
+<Callout type="tip">
+Cloud-Init enables automated VM provisioning with custom configurations, SSH keys, and network settings.
+</Callout>
+
+```bash
+# Add Cloud-Init drive
+qm set 100 --ide2 local-lvm:cloudinit
+
+# Configure Cloud-Init settings
+qm set 100 --ciuser ubuntu --cipassword secure123 --sshkey ~/.ssh/id_rsa.pub --ipconfig0 ip=192.168.1.100/24,gw=192.168.1.1
+
+# Resize disk after clone
+qm resize 100 scsi0 +10G
+```
+
+### GPU Passthrough
+
+**Prerequisites**:
+- IOMMU enabled in BIOS
+- GPU in separate IOMMU group
+
+```bash
+# Enable IOMMU
+echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on"' >> /etc/default/grub
+update-grub
+
+# Blacklist GPU driver
+echo 'blacklist nouveau' >> /etc/modprobe.d/blacklist.conf
+
+# Add GPU to VM
+qm set 100 --hostpci0 01:00,pcie=1,x-vga=1
+```
+
+### USB Passthrough
+
+```bash
+# List USB devices
+lsusb
+
+# Add USB device to VM
+qm set 100 --usb0 host=1234:5678
+
+# Add USB port
+qm set 100 --usb1 host=1-2
+```
+
+## Performance Optimization
+
+### CPU Optimization
+
+<Files>
+  <File name="CPU Pinning">
+    Pin VM cores to specific host cores for consistent performance
+  </File>
+  <File name="NUMA Topology">
+    Configure NUMA for large VMs to optimize memory access
+  </File>
+  <File name="CPU Governor">
+    Set performance governor for consistent CPU frequency
+  </File>
+</Files>
+
+```bash
+# CPU pinning (cores 2-3 to VM)
+qm set 100 --cpus 2 --affinity 2,3
+
+# NUMA configuration
+qm set 100 --numa 1 --cpus 4 --memory 8192
+```
+
+### Memory Optimization
+
+```bash
+# Disable memory ballooning for performance
+qm set 100 --balloon 0
+
+# Enable huge pages
+echo 'vm.nr_hugepages = 1024' >> /etc/sysctl.conf
+qm set 100 --hugepages 1024
+```
+
+### Storage Optimization
+
+```bash
+# Use VirtIO SCSI with multiple queues
+qm set 100 --scsi0 local-lvm:vm-100-disk-0,iothread=1,queues=4
+
+# Enable write-back cache for performance
+qm set 100 --scsi0 local-lvm:vm-100-disk-0,cache=writeback
+
+# Disable cache for safety
+qm set 100 --scsi0 local-lvm:vm-100-disk-0,cache=none
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<Callout type="warn">
+Always create snapshots before making significant changes to VMs.
+</Callout>
+
+**VM Won't Start**:
+```bash
+# Check VM configuration
+qm config 100
+
+# Check system resources
+free -h
+df -h
+
+# Check logs
+journalctl -u qemu-server@100
+```
+
+**Performance Issues**:
+```bash
+# Monitor VM performance
+qm monitor 100
+info cpus
+info memory
+info block
+
+# Check host resources
+top
+iostat -x 1
+```
+
+**Network Issues**:
+```bash
+# Check bridge configuration
+brctl show
+
+# Test network connectivity
+ping -c 4 gateway_ip
+
+# Check firewall rules
+iptables -L
+```
+
+## Best Practices
+
+- **Resource Planning**: Don't over-allocate CPU and memory
+- **Regular Backups**: Implement automated backup strategies
+- **Monitoring**: Set up performance and resource monitoring
+- **Security**: Keep guest OS and Proxmox updated
+- **Documentation**: Maintain VM inventory and configurations
+- **Testing**: Test snapshots and backups regularly
+
+<Callout type="info">
+Proper VM management ensures optimal performance, reliability, and maintainability of your virtualized infrastructure.
+</Callout>

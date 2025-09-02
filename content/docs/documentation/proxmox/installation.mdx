@@ -1,0 +1,369 @@
+---
+title: Installation Guide
+description: Complete Proxmox VE installation process from download to first boot
+icon: Download
+---
+
+## Overview
+
+This guide covers the complete installation process of Proxmox Virtual Environment, from downloading the ISO to completing the initial setup and accessing the web interface.
+
+<Callout title="Before You Begin">
+  Ensure your hardware meets the minimum requirements and you have a reliable internet connection for updates. The installation will format the target drive, so backup any important data.
+</Callout>
+
+## System Requirements
+
+### Minimum Requirements
+- **CPU:** 64-bit processor with virtualization support (Intel VT-x or AMD-V)
+- **RAM:** 2GB (8GB+ recommended for production)
+- **Storage:** 32GB (SSD recommended for better performance)
+- **Network:** Ethernet connection for management
+
+### Recommended Production Setup
+- **CPU:** Multi-core processor (8+ cores recommended)
+- **RAM:** 32GB+ ECC memory for stability
+- **Storage:** Multiple drives for redundancy (RAID 1/10)
+- **Network:** Multiple NICs for redundancy and performance
+
+## Pre-Installation Checklist
+
+<Accordions>
+
+<Accordion id="hardware-check" title="🔧 Hardware Verification">
+
+**CPU Virtualization Support:**
+```bash
+# Check for Intel VT-x
+grep -E "(vmx|svm)" /proc/cpuinfo
+
+# Check if virtualization is enabled in BIOS
+lscpu | grep Virtualization
+```
+
+**Memory and Storage:**
+- Verify sufficient RAM for your planned workload
+- Ensure storage drives are properly connected
+- Consider RAID configuration for redundancy
+
+**Network Planning:**
+- Plan IP addressing scheme
+- Identify management network
+- Consider VLAN requirements
+
+</Accordion>
+
+<Accordion id="download-prep" title="📥 Download and Preparation">
+
+**Download Proxmox VE:**
+1. Visit [proxmox.com/downloads](https://www.proxmox.com/en/downloads)
+2. Download the latest stable ISO
+3. Verify checksum for integrity
+
+**Create Installation Media:**
+```bash
+# Linux - Create bootable USB
+sudo dd if=proxmox-ve_*.iso of=/dev/sdX bs=1M status=progress
+
+# Windows - Use tools like Rufus or Etcher
+# macOS - Use dd command or tools like balenaEtcher
+```
+
+**BIOS/UEFI Settings:**
+- Enable virtualization (VT-x/AMD-V)
+- Enable VT-d/IOMMU if using PCIe passthrough
+- Set boot order to USB/DVD first
+
+</Accordion>
+
+</Accordions>
+
+## Installation Process
+
+### Step 1: Boot from Installation Media
+
+1. **Insert installation media** and boot from it
+2. **Select "Install Proxmox VE"** from the boot menu
+3. **Wait for the installer** to load (may take a few minutes)
+
+<Callout type="info" title="Boot Options">
+  If you encounter issues, try the "Install Proxmox VE (Debug mode)" option for more verbose output and troubleshooting information.
+</Callout>
+
+### Step 2: Accept License Agreement
+
+1. **Read the license agreement** (GNU AGPL v3)
+2. **Click "I agree"** to continue
+3. The installer will proceed to disk selection
+
+### Step 3: Target Disk Selection
+
+<Accordions>
+
+<Accordion id="single-disk" title="💾 Single Disk Setup">
+
+**For simple installations:**
+1. **Select target disk** from the dropdown
+2. **Choose filesystem:**
+   - **ext4** - Traditional, reliable
+   - **ZFS (RAID0)** - Advanced features, snapshots
+3. **Configure advanced options** if needed
+4. **Click Next** to continue
+
+</Accordion>
+
+<Accordion id="zfs-setup" title="🗄️ ZFS RAID Setup">
+
+**For production environments:**
+1. **Select "Options"** for advanced disk configuration
+2. **Choose ZFS filesystem**
+3. **Select RAID level:**
+   - **RAID0** - No redundancy, maximum performance
+   - **RAID1** - Mirroring, good for 2 disks
+   - **RAID10** - Striped mirrors, best performance + redundancy
+   - **RAIDZ-1** - Similar to RAID5, minimum 3 disks
+   - **RAIDZ-2** - Similar to RAID6, minimum 4 disks
+
+**ZFS Options:**
+- **ashift** - Sector size (usually auto-detected)
+- **compress** - Enable compression (lz4 recommended)
+- **checksum** - Data integrity verification
+- **copies** - Number of copies for metadata
+
+</Accordion>
+
+</Accordions>
+
+### Step 4: Location and Time Zone
+
+1. **Select your country** from the dropdown
+2. **Choose time zone** (affects log timestamps and scheduling)
+3. **Select keyboard layout** for console access
+4. **Click Next** to continue
+
+### Step 5: Administration Password and Email
+
+1. **Set root password** (use a strong password)
+2. **Confirm password** by retyping
+3. **Enter email address** for system notifications
+4. **Click Next** to proceed
+
+<Callout type="warn" title="Security Note">
+  The root password provides full system access. Use a strong, unique password and consider changing it after installation. The email address is used for system alerts and notifications.
+</Callout>
+
+### Step 6: Management Network Configuration
+
+<Accordions>
+
+<Accordion id="network-basic" title="🌐 Basic Network Setup">
+
+**Automatic Configuration (DHCP):**
+1. **Select network interface** (usually auto-detected)
+2. **Leave IP settings as DHCP** for automatic configuration
+3. **Verify hostname** (auto-generated or custom)
+4. **Click Next** if DHCP is available
+
+</Accordion>
+
+<Accordion id="network-static" title="🔧 Static IP Configuration">
+
+**Manual Network Configuration:**
+1. **Select management interface** (eth0, ens18, etc.)
+2. **Enter static IP address** (e.g., 192.168.1.100/24)
+3. **Set gateway address** (e.g., 192.168.1.1)
+4. **Configure DNS server** (e.g., 8.8.8.8 or local DNS)
+5. **Set hostname** (e.g., pve01.local)
+
+**Network Planning Example:**
+```
+IP Address: 192.168.1.100/24
+Gateway:    192.168.1.1
+DNS:        192.168.1.1, 8.8.8.8
+Hostname:   pve01.yourdomain.com
+```
+
+</Accordion>
+
+</Accordions>
+
+### Step 7: Installation Summary and Confirmation
+
+1. **Review all settings:**
+   - Target disk and filesystem
+   - Network configuration
+   - Administrative settings
+2. **Click "Install"** to begin installation
+3. **Wait for completion** (typically 5-15 minutes)
+
+## Post-Installation Setup
+
+### Step 1: First Boot and Access
+
+1. **Remove installation media** when prompted
+2. **Reboot the system**
+3. **Note the management IP** displayed on console
+4. **Access web interface** at `https://your-ip:8006`
+
+<Callout title="SSL Certificate Warning">
+  You'll see a security warning about the self-signed certificate. This is normal for initial setup. Click "Advanced" and "Proceed" to continue.
+</Callout>
+
+### Step 2: Initial Web Interface Login
+
+1. **Open web browser** and navigate to `https://your-proxmox-ip:8006`
+2. **Login credentials:**
+   - **Username:** `root`
+   - **Password:** (set during installation)
+   - **Realm:** `Linux PAM standard authentication`
+3. **Click "Login"** to access the management interface
+
+### Step 3: Subscription Notice
+
+You'll see a subscription notice popup:
+
+<Accordions>
+
+<Accordion id="no-subscription" title="🆓 Community Version (No Subscription)">
+
+**For home labs and testing:**
+1. **Click "OK"** to dismiss the notice
+2. **Update package sources** to use community repositories
+3. **Disable enterprise repository** (covered in post-install guide)
+
+This notice appears on each login but doesn't affect functionality.
+
+</Accordion>
+
+<Accordion id="enterprise" title="💼 Enterprise Subscription">
+
+**For production environments:**
+1. **Purchase Proxmox subscription** from proxmox.com
+2. **Enter subscription key** in web interface
+3. **Access enterprise repositories** for stable updates
+4. **Get professional support** and additional features
+
+</Accordion>
+
+</Accordions>
+
+## Verification and Testing
+
+### System Health Check
+
+```bash
+# Check system status
+pveversion --verbose
+
+# Verify virtualization support
+egrep -c '(vmx|svm)' /proc/cpuinfo
+
+# Check memory and storage
+free -h
+df -h
+
+# Test network connectivity
+ping -c 4 8.8.8.8
+```
+
+### Web Interface Tour
+
+<Cards>
+
+<Card title="📊 Summary" description="Node overview with resource usage, storage, and running VMs/containers">
+  Main dashboard showing system health and resource utilization.
+</Card>
+
+<Card title="🖥️ Shell" description="Direct console access through web browser">
+  Built-in terminal for command-line management without SSH.
+</Card>
+
+<Card title="📁 Storage" description="Local and shared storage management">
+  Configure and monitor storage pools, ISOs, and backups.
+</Card>
+
+<Card title="🌐 Network" description="Network interface and bridge configuration">
+  Manage network interfaces, bridges, and VLAN configuration.
+</Card>
+
+</Cards>
+
+## Common Installation Issues
+
+<Accordions>
+
+<Accordion id="boot-issues" title="🚫 Boot Problems">
+
+**System won't boot from USB/DVD:**
+- Verify boot order in BIOS/UEFI
+- Try different USB port or DVD drive
+- Recreate installation media
+- Check for UEFI vs Legacy boot mode
+
+**Installation hangs or crashes:**
+- Check hardware compatibility
+- Test memory with memtest86+
+- Verify CPU virtualization support
+- Try installation in debug mode
+
+</Accordion>
+
+<Accordion id="network-issues" title="🌐 Network Problems">
+
+**Can't access web interface:**
+- Verify IP address and network connectivity
+- Check firewall settings on client machine
+- Ensure port 8006 is not blocked
+- Try different browser or incognito mode
+
+**Network configuration errors:**
+- Double-check IP address, subnet, and gateway
+- Verify DNS server accessibility
+- Check network cable and switch connectivity
+- Review DHCP server configuration
+
+</Accordion>
+
+<Accordion id="storage-issues" title="💾 Storage Problems">
+
+**Disk not detected:**
+- Check SATA/NVMe connections
+- Verify disk health with manufacturer tools
+- Enable AHCI mode in BIOS
+- Try different SATA port or cable
+
+**ZFS installation fails:**
+- Ensure sufficient memory (8GB+ for ZFS)
+- Check disk compatibility
+- Verify all disks are same size for RAID
+- Try single disk installation first
+
+</Accordion>
+
+</Accordions>
+
+## Next Steps
+
+Congratulations! You've successfully installed Proxmox VE. Here's what to do next:
+
+<Cards>
+  <Card title="⚙️ Post-Install Setup" href="/docs/documentation/proxmox/post-install" description="Essential configuration and optimization steps" />
+  <Card title="🌐 Network Configuration" href="/docs/documentation/proxmox/network-config" description="Configure bridges, VLANs, and advanced networking" />
+  <Card title="💾 Storage Setup" href="/docs/documentation/proxmox/storage-management" description="Configure storage pools and shared storage" />
+  <Card title="🔒 Security Hardening" href="/docs/documentation/proxmox/security-hardening" description="Secure your Proxmox installation" />
+</Cards>
+
+## Installation Checklist
+
+- [ ] Hardware requirements verified
+- [ ] Installation media created and tested
+- [ ] BIOS/UEFI settings configured
+- [ ] Proxmox VE installed successfully
+- [ ] Web interface accessible
+- [ ] Initial login completed
+- [ ] System health verified
+- [ ] Ready for post-installation configuration
+
+<Callout type="info" title="Documentation">
+  Keep this installation information handy for future reference. Document your network configuration, disk layout, and any custom settings for troubleshooting and maintenance.
+</Callout>

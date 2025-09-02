@@ -1,0 +1,587 @@
+---
+title: Self-Hosted Obsidian Sync
+description: Complete guide to setting up Obsidian with free, self-hosted, instant sync using CouchDB and LiveSync plugin
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Self-Hosted Obsidian Sync
+
+Set up Obsidian with free, self-hosted, instant synchronization using CouchDB and the LiveSync plugin. This solution provides secure, encrypted note syncing across all your devices without relying on Obsidian's paid sync service.
+
+## Architecture Overview
+
+<Callout type="info">
+This setup provides end-to-end encrypted synchronization with offline access and real-time collaboration capabilities.
+</Callout>
+
+### System Components
+
+<Files>
+  <File name="Obsidian App">
+    - Installed on each device
+    - Local copy for offline access
+    - Real-time synchronization
+  </File>
+  <File name="CouchDB Database">
+    - Stores encrypted notes
+    - Handles conflict resolution
+    - Multi-device coordination
+  </File>
+  <File name="LiveSync Plugin">
+    - Connects Obsidian to CouchDB
+    - Manages synchronization
+    - Provides encryption
+  </File>
+</Files>
+
+## CouchDB Server Setup
+
+### Docker Deployment
+
+<Tabs items={['Docker Compose', 'Docker Run', 'Manual Installation']}>
+<Tab value="Docker Compose">
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  couchdb-obsidian:
+    container_name: obsidian-livesync
+    image: couchdb:3.3.3
+    environment:
+      - PUID=99
+      - PGID=100
+      - UMASK=0022
+      - TZ=America/New_York
+      - COUCHDB_USER=obsidian_user    # Change this
+      - COUCHDB_PASSWORD=secure_password  # Change this
+    volumes:
+      - ./data:/opt/couchdb/data
+      - ./config:/opt/couchdb/etc/local.d
+    ports:
+      - "5984:5984"
+    restart: unless-stopped
+    networks:
+      - obsidian-net
+
+networks:
+  obsidian-net:
+    driver: bridge
+```
+
+Deploy the service:
+```bash
+docker-compose up -d
+```
+
+</Tab>
+<Tab value="Docker Run">
+
+```bash
+# Create data directories
+mkdir -p ./couchdb/{data,config}
+
+# Run CouchDB container
+docker run -d \
+  --name obsidian-livesync \
+  --restart unless-stopped \
+  -p 5984:5984 \
+  -e COUCHDB_USER=obsidian_user \
+  -e COUCHDB_PASSWORD=secure_password \
+  -e TZ=America/New_York \
+  -v ./couchdb/data:/opt/couchdb/data \
+  -v ./couchdb/config:/opt/couchdb/etc/local.d \
+  couchdb:3.3.3
+```
+
+</Tab>
+<Tab value="Manual Installation">
+
+On Ubuntu/Debian:
+```bash
+# Add CouchDB repository
+curl -L https://couchdb.apache.org/repo/keys.asc | sudo apt-key add -
+echo "deb https://apache.jfrog.io/artifactory/couchdb-deb/ focal main" | sudo tee /etc/apt/sources.list.d/couchdb.list
+
+# Install CouchDB
+sudo apt update && sudo apt install couchdb
+
+# Configure during installation or edit /opt/couchdb/etc/local.ini
+```
+
+</Tab>
+</Tabs>
+
+### Initial CouchDB Configuration
+
+<Callout type="warn">
+Complete the initial setup immediately after deployment to secure your CouchDB instance.
+</Callout>
+
+1. **Access CouchDB Interface**:
+   - Navigate to `http://your-server-ip:5984/_utils`
+   - Use credentials from Docker configuration
+
+2. **Configure Single Node**:
+   - Expand left menu (click `<->` icon)
+   - Go to **Setup** → **Configure as Single Node**
+   - Enter admin credentials
+   - Click **Configure Node**
+
+3. **Verify Installation**:
+   - Navigate to **Verify** in left menu
+   - Click **Verify Installation**
+   - Confirm six green checkmarks
+
+### Database Creation
+
+```bash
+# Create database via API
+curl -X PUT http://obsidian_user:secure_password@your-server-ip:5984/obsidiandb
+
+# Or via web interface:
+# 1. Go to Databases → Create Database
+# 2. Name: obsidiandb (or user-specific like obsidiandb_john)
+# 3. Choose: Non-partitioned
+```
+
+### Security Configuration
+
+Configure these settings via **Configuration** in the web interface:
+
+<Tabs items={['Authentication', 'CORS Settings', 'Size Limits']}>
+<Tab value="Authentication">
+
+| Section | Name | Value |
+|---------|------|-------|
+| `chttpd` | `require_valid_user` | `true` |
+| `chttpd_auth` | `require_valid_user` | `true` |
+| `httpd` | `WWW-Authenticate` | `Basic realm="couchdb"` |
+
+</Tab>
+<Tab value="CORS Settings">
+
+| Section | Name | Value |
+|---------|------|-------|
+| `httpd` | `enable_cors` | `true` |
+| `chttpd` | `enable_cors` | `true` |
+| `cors` | `credentials` | `true` |
+| `cors` | `origins` | `app://obsidian.md,capacitor://localhost,http://localhost` |
+
+</Tab>
+<Tab value="Size Limits">
+
+| Section | Name | Value |
+|---------|------|-------|
+| `chttpd` | `max_http_request_size` | `4294967296` |
+| `couchdb` | `max_document_size` | `50000000` |
+
+</Tab>
+</Tabs>
+
+## Obsidian Configuration
+
+### Installing Obsidian
+
+<Tabs items={['Desktop', 'Mobile', 'Web']}>
+<Tab value="Desktop">
+
+**Windows/macOS/Linux**:
+1. Download from [obsidian.md](https://obsidian.md)
+2. Install and create new vault
+3. Choose vault location and name
+
+</Tab>
+<Tab value="Mobile">
+
+**iOS/Android**:
+1. Install from App Store/Play Store
+2. Create new vault or open existing
+3. Grant necessary permissions
+
+</Tab>
+<Tab value="Web">
+
+**Browser Access** (limited functionality):
+- Access via `obsidian://` protocol
+- Some features may be restricted
+- Primarily for emergency access
+
+</Tab>
+</Tabs>
+
+### LiveSync Plugin Installation
+
+1. **Enable Community Plugins**:
+   - Settings → Community Plugins
+   - Turn off **Safe Mode**
+   - Click **Browse**
+
+2. **Install LiveSync**:
+   - Search for **Self-hosted LiveSync**
+   - Install and enable the plugin
+   - Open plugin settings
+
+### LiveSync Configuration
+
+<Callout type="tip">
+Test the connection before enabling synchronization to ensure proper configuration.
+</Callout>
+
+<Tabs items={['Connection Setup', 'Sync Configuration', 'Encryption Setup']}>
+<Tab value="Connection Setup">
+
+1. **Database Connection** (🛰️ icon):
+   ```
+   Remote Type: CouchDB
+   URI: http://your-server-ip:5984
+   Username: obsidian_user
+   Password: secure_password
+   Database Name: obsidiandb
+   ```
+
+2. **Test Connection**:
+   - Click **Test** button
+   - Verify successful connection
+   - Click **Check** and fix any issues
+
+</Tab>
+<Tab value="Sync Configuration">
+
+1. **Sync Mode** (🔄 icon):
+   - Set to **LiveSync**
+   - Enable **Periodic Sync** if needed
+   - Configure sync intervals
+
+2. **Sync Options**:
+   ```
+   Sync on Save: Enabled
+   Sync on File Open: Enabled
+   Sync on Start: Enabled
+   Batch Database Update: Enabled
+   ```
+
+</Tab>
+<Tab value="Encryption Setup">
+
+1. **Enable End-to-End Encryption**:
+   - Toggle **End-to-end encryption**
+   - Generate or enter passphrase
+   - **Important**: Save passphrase securely
+
+2. **Encryption Settings**:
+   ```
+   Encrypt File Contents: Yes
+   Encrypt File Names: Optional
+   Encrypt Metadata: Recommended
+   ```
+
+</Tab>
+</Tabs>
+
+## Advanced Configuration
+
+### Reverse Proxy Setup
+
+<Callout type="info">
+Use HTTPS for secure access, especially on mobile devices and public networks.
+</Callout>
+
+<Tabs items={['Nginx', 'Traefik', 'Cloudflare Tunnel']}>
+<Tab value="Nginx">
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name obsidian.yourdomain.com;
+    
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        proxy_pass http://localhost:5984;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+</Tab>
+<Tab value="Traefik">
+
+```yaml
+# docker-compose.yml addition
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.obsidian.rule=Host(`obsidian.yourdomain.com`)"
+  - "traefik.http.routers.obsidian.tls=true"
+  - "traefik.http.routers.obsidian.tls.certresolver=letsencrypt"
+  - "traefik.http.services.obsidian.loadbalancer.server.port=5984"
+```
+
+</Tab>
+<Tab value="Cloudflare Tunnel">
+
+```yaml
+# cloudflared config
+tunnel: your-tunnel-id
+credentials-file: /path/to/credentials.json
+
+ingress:
+  - hostname: obsidian.yourdomain.com
+    service: http://localhost:5984
+  - service: http_status:404
+```
+
+</Tab>
+</Tabs>
+
+### Multi-User Setup
+
+<Files>
+  <File name="Separate Databases">
+    - Create individual databases per user
+    - Use naming convention: obsidiandb_username
+    - Configure separate access permissions
+  </File>
+  <File name="Shared Vaults">
+    - Single database for team collaboration
+    - Configure conflict resolution policies
+    - Set up user authentication
+  </File>
+</Files>
+
+```bash
+# Create user-specific databases
+curl -X PUT http://admin:password@server:5984/obsidiandb_alice
+curl -X PUT http://admin:password@server:5984/obsidiandb_bob
+
+# Create users with database access
+curl -X PUT http://admin:password@server:5984/_users/org.couchdb.user:alice \
+  -H "Content-Type: application/json" \
+  -d '{"name": "alice", "password": "alice_password", "roles": [], "type": "user"}'
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<Callout type="warn">
+Always backup your vault before troubleshooting sync issues.
+</Callout>
+
+<Tabs items={['Connection Issues', 'Sync Conflicts', 'Performance Problems']}>
+<Tab value="Connection Issues">
+
+**Cannot Connect to Database**:
+```bash
+# Check CouchDB status
+curl http://your-server:5984/
+
+# Verify database exists
+curl http://user:pass@your-server:5984/_all_dbs
+
+# Test authentication
+curl -u user:pass http://your-server:5984/obsidiandb
+```
+
+**CORS Errors**:
+- Verify CORS configuration in CouchDB
+- Check origins setting includes Obsidian protocols
+- Restart CouchDB after configuration changes
+
+</Tab>
+<Tab value="Sync Conflicts">
+
+**Conflict Resolution**:
+1. Open LiveSync settings
+2. Go to **Conflict Resolution**
+3. Choose resolution strategy:
+   - **Automatic**: Use newer version
+   - **Manual**: Review each conflict
+   - **Keep Both**: Create duplicate files
+
+**Manual Conflict Resolution**:
+```
+Conflicted files appear with suffix:
+- note.md (conflict-2024-02-09-14-30-15)
+- note.md (conflict-2024-02-09-14-30-20)
+```
+
+</Tab>
+<Tab value="Performance Problems">
+
+**Slow Sync Performance**:
+- Reduce batch size in LiveSync settings
+- Enable compression in CouchDB
+- Optimize network connection
+- Consider local CouchDB instance
+
+**Large Vault Issues**:
+```bash
+# Increase CouchDB limits
+curl -X PUT http://admin:pass@server:5984/_node/_local/_config/couchdb/max_document_size -d '"100000000"'
+curl -X PUT http://admin:pass@server:5984/_node/_local/_config/chttpd/max_http_request_size -d '"8294967296"'
+```
+
+</Tab>
+</Tabs>
+
+### Monitoring and Maintenance
+
+```bash
+# Monitor CouchDB logs
+docker logs -f obsidian-livesync
+
+# Check database size
+curl http://user:pass@server:5984/obsidiandb | jq '.doc_count, .disk_size'
+
+# Compact database
+curl -X POST http://user:pass@server:5984/obsidiandb/_compact
+
+# Backup database
+curl http://user:pass@server:5984/obsidiandb/_all_docs?include_docs=true > backup.json
+```
+
+## Security Best Practices
+
+### Access Control
+
+<Files>
+  <File name="Network Security">
+    - Use HTTPS/TLS encryption
+    - Restrict access by IP if possible
+    - Configure firewall rules
+  </File>
+  <File name="Authentication">
+    - Strong passwords for CouchDB
+    - Enable end-to-end encryption
+    - Regular password rotation
+  </File>
+  <File name="Data Protection">
+    - Regular encrypted backups
+    - Secure passphrase storage
+    - Monitor access logs
+  </File>
+</Files>
+
+### Backup Strategy
+
+```bash
+#!/bin/bash
+# Automated backup script
+
+BACKUP_DIR="/backup/obsidian"
+DATE=$(date +%Y%m%d_%H%M%S)
+DB_NAME="obsidiandb"
+
+# Create backup directory
+mkdir -p $BACKUP_DIR
+
+# Backup database
+curl -u user:pass http://server:5984/$DB_NAME/_all_docs?include_docs=true > $BACKUP_DIR/backup_$DATE.json
+
+# Compress backup
+gzip $BACKUP_DIR/backup_$DATE.json
+
+# Clean old backups (keep 30 days)
+find $BACKUP_DIR -name "backup_*.json.gz" -mtime +30 -delete
+
+echo "Backup completed: backup_$DATE.json.gz"
+```
+
+## Migration and Updates
+
+### Migrating Existing Vault
+
+1. **Export Current Vault**:
+   - Copy all files to temporary location
+   - Note any custom configurations
+
+2. **Setup New Sync**:
+   - Configure LiveSync on primary device
+   - Wait for initial sync completion
+
+3. **Add Other Devices**:
+   - Install Obsidian and LiveSync
+   - Use same CouchDB credentials
+   - Allow initial sync to complete
+
+### Updating Components
+
+<Tabs items={['CouchDB Updates', 'Plugin Updates', 'Obsidian Updates']}>
+<Tab value="CouchDB Updates">
+
+```bash
+# Update CouchDB container
+docker-compose pull
+docker-compose up -d
+
+# Verify update
+curl http://server:5984/ | jq '.version'
+```
+
+</Tab>
+<Tab value="Plugin Updates">
+
+1. Check for updates in Community Plugins
+2. Update LiveSync plugin
+3. Review changelog for breaking changes
+4. Test sync functionality
+
+</Tab>
+<Tab value="Obsidian Updates">
+
+1. Update Obsidian application
+2. Verify plugin compatibility
+3. Test all sync functionality
+4. Update mobile apps if needed
+
+</Tab>
+</Tabs>
+
+## Performance Optimization
+
+### CouchDB Tuning
+
+```bash
+# Optimize for Obsidian workload
+curl -X PUT http://admin:pass@server:5984/_node/_local/_config/couchdb/delayed_commits -d '"false"'
+curl -X PUT http://admin:pass@server:5984/_node/_local/_config/couchdb/max_dbs_open -d '"500"'
+
+# Enable compression
+curl -X PUT http://admin:pass@server:5984/_node/_local/_config/httpd/compression -d '"snappy"'
+```
+
+### Network Optimization
+
+- Use local network for primary sync
+- Configure QoS for sync traffic
+- Consider CDN for global access
+- Implement connection pooling
+
+## Conclusion
+
+This self-hosted Obsidian sync solution provides:
+
+- **Cost-effective**: No subscription fees
+- **Privacy-focused**: Your data stays on your servers
+- **Flexible**: Customizable to your needs
+- **Reliable**: Offline access with conflict resolution
+- **Secure**: End-to-end encryption available
+
+<Callout type="info">
+Regular maintenance and monitoring ensure optimal performance and data safety for your self-hosted Obsidian sync setup.
+</Callout>

@@ -1,0 +1,604 @@
+---
+title: Essential Tools & Utilities
+description: Essential third-party tools and utilities for enhanced Proxmox VE management and automation
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Essential Tools & Utilities
+
+Enhance your Proxmox VE experience with these essential third-party tools and utilities that provide automation, optimization, and simplified management capabilities.
+
+## Proxmox Helper Scripts (tteck)
+
+<Callout type="info">
+The most popular and comprehensive collection of automated installation scripts for Proxmox VE, maintained by the community.
+</Callout>
+
+### Overview
+
+The **Proxmox Helper Scripts** (formerly Proxmox VE Helper Scripts) by tteck is an invaluable collection that automates the installation of various applications and services in LXC containers and VMs.
+
+### Installation
+
+<Tabs items={['Post-Install Script', 'Individual Apps', 'Manual Access']}>
+<Tab value="Post-Install Script">
+
+```bash
+# Proxmox VE Post Install Script (run in Proxmox shell)
+bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"
+```
+
+**Features:**
+- Corrects Proxmox VE repository sources
+- Disables subscription nag dialog
+- Updates system packages
+- Installs useful utilities
+- Optimizes system settings
+
+</Tab>
+<Tab value="Individual Apps">
+
+```bash
+# Example: Home Assistant installation
+bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/ct/homeassistant.sh)"
+
+# Example: Pi-hole installation
+bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/ct/pihole.sh)"
+
+# Example: Docker installation
+bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/ct/docker.sh)"
+```
+
+</Tab>
+<Tab value="Manual Access">
+
+**Website**: [helper-scripts.com](https://helper-scripts.com/)
+**GitHub**: [github.com/tteck/Proxmox](https://github.com/tteck/Proxmox)
+
+Browse available scripts and copy installation commands directly from the website.
+
+</Tab>
+</Tabs>
+
+### Available Applications
+
+<Files>
+  <File name="Home Automation">
+    - Home Assistant
+    - Node-RED
+    - ESPHome
+    - Zigbee2MQTT
+    - Mosquitto MQTT
+    - Scrypted
+  </File>
+  <File name="Media Servers">
+    - Plex Media Server
+    - Jellyfin
+    - Emby
+    - Tautulli
+    - Radarr/Sonarr
+    - Overseerr
+  </File>
+  <File name="Network Services">
+    - Pi-hole
+    - AdGuard Home
+    - Nginx Proxy Manager
+    - Unifi Controller
+    - WireGuard
+    - OpenVPN
+  </File>
+  <File name="Development">
+    - Docker
+    - Portainer
+    - GitLab
+    - Jenkins
+    - Code Server
+    - Gitea
+  </File>
+  <File name="Monitoring">
+    - Grafana
+    - Prometheus
+    - InfluxDB
+    - Uptime Kuma
+    - Zabbix
+    - LibreNMS
+  </File>
+  <File name="File Management">
+    - Nextcloud
+    - PhotoPrism
+    - Syncthing
+    - FileBrowser
+    - Samba
+  </File>
+</Files>
+
+### Key Features
+
+- **One-click installations**: Simple script execution
+- **Optimized containers**: Pre-configured for Proxmox
+- **Regular updates**: Community-maintained and updated
+- **Resource efficient**: Minimal resource usage
+- **Easy management**: Built-in update and management features
+
+## ProxMenu - Enhanced Management Tool
+
+<Callout type="tip">
+ProxMenu provides a text-based menu system that simplifies common Proxmox management tasks through an intuitive interface.
+</Callout>
+
+### Installation
+
+```bash
+# Install ProxMenu
+wget https://raw.githubusercontent.com/extremeshok/xshok-proxmox/master/install-post.sh
+bash install-post.sh
+
+# Alternative direct installation
+curl -sSL https://raw.githubusercontent.com/extremeshok/xshok-proxmox/master/install-post.sh | bash
+```
+
+### Features
+
+<Tabs items={['System Management', 'Security Features', 'Optimization Tools']}>
+<Tab value="System Management">
+
+- **System Information**: Hardware and software details
+- **Package Management**: Update and upgrade system packages
+- **Service Management**: Start, stop, and restart services
+- **Log Viewing**: Easy access to system logs
+- **Network Configuration**: Network interface management
+- **Storage Management**: Disk and storage configuration
+
+</Tab>
+<Tab value="Security Features">
+
+- **Firewall Configuration**: Simplified firewall setup
+- **SSH Hardening**: Secure SSH configuration
+- **User Management**: Create and manage users
+- **SSL Certificate Management**: Certificate installation and renewal
+- **Security Auditing**: System security checks
+
+</Tab>
+<Tab value="Optimization Tools">
+
+- **Performance Tuning**: System optimization settings
+- **Memory Management**: RAM and swap optimization
+- **CPU Configuration**: CPU governor and scaling settings
+- **I/O Optimization**: Disk I/O scheduler configuration
+- **Network Tuning**: Network performance optimization
+
+</Tab>
+</Tabs>
+
+### Usage
+
+```bash
+# Launch ProxMenu
+proxmenu
+
+# Or if installed globally
+/usr/local/bin/proxmenu
+```
+
+## PECU - Proxmox Enhanced Configuration Utility
+
+<Callout type="info">
+PECU (Proxmox Enhanced Configuration Utility) by Danilop95 provides additional configuration options and automation capabilities.
+</Callout>
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/Danilop95/Proxmox-Enhanced-Configuration-Utility.git
+cd Proxmox-Enhanced-Configuration-Utility
+
+# Make executable
+chmod +x proxmox-config.sh
+
+# Run the utility
+./proxmox-config.sh
+```
+
+### Features
+
+<Files>
+  <File name="Post-Installation Setup">
+    - Automated repository configuration
+    - Essential package installation
+    - System optimization
+    - Security baseline configuration
+  </File>
+  <File name="Performance Tuning">
+    - CPU governor optimization
+    - Memory management tuning
+    - I/O scheduler configuration
+    - Network performance optimization
+  </File>
+  <File name="Security Enhancements">
+    - Firewall configuration
+    - SSH hardening
+    - User access control
+    - Certificate management
+  </File>
+  <File name="Backup Automation">
+    - Automated backup scheduling
+    - Backup verification scripts
+    - Retention policy management
+    - Notification setup
+  </File>
+</Files>
+
+### Configuration Options
+
+<Tabs items={['System Optimization', 'Security Hardening', 'Monitoring Setup']}>
+<Tab value="System Optimization">
+
+```bash
+# Example configuration options
+./proxmox-config.sh --optimize-cpu
+./proxmox-config.sh --tune-memory
+./proxmox-config.sh --configure-storage
+./proxmox-config.sh --network-optimization
+```
+
+**Available Optimizations:**
+- CPU frequency scaling
+- Memory swappiness tuning
+- Disk I/O scheduler selection
+- Network buffer optimization
+- Kernel parameter tuning
+
+</Tab>
+<Tab value="Security Hardening">
+
+```bash
+# Security configuration
+./proxmox-config.sh --harden-ssh
+./proxmox-config.sh --configure-firewall
+./proxmox-config.sh --setup-fail2ban
+./proxmox-config.sh --ssl-certificates
+```
+
+**Security Features:**
+- SSH key-only authentication
+- Firewall rule automation
+- Intrusion detection setup
+- SSL/TLS certificate management
+- User privilege management
+
+</Tab>
+<Tab value="Monitoring Setup">
+
+```bash
+# Monitoring configuration
+./proxmox-config.sh --setup-monitoring
+./proxmox-config.sh --configure-alerts
+./proxmox-config.sh --install-grafana
+```
+
+**Monitoring Components:**
+- System metrics collection
+- Performance monitoring
+- Alert configuration
+- Dashboard setup
+- Log aggregation
+
+</Tab>
+</Tabs>
+
+## Additional Useful Tools
+
+### pve-zsync - ZFS Replication
+
+<Callout type="info">
+Built-in tool for ZFS-based replication between Proxmox nodes, also configurable via web interface.
+</Callout>
+
+```bash
+# Install pve-zsync (usually pre-installed)
+apt install pve-zsync
+
+# Configure replication
+pve-zsync create --source 100 --dest 192.168.1.201:101 --interval 15
+
+# List replication jobs
+pve-zsync list
+
+# Manual sync
+pve-zsync sync --source 100 --dest 192.168.1.201:101
+```
+
+**Web GUI Access**: **Datacenter → Replication → Add**
+
+### Proxmox Backup Server Integration
+
+```bash
+# Add PBS storage
+pvesm add pbs backup-pbs \
+  --server 192.168.1.250 \
+  --datastore backup \
+  --username admin@pam \
+  --password secret \
+  --fingerprint <fingerprint>
+
+# Test PBS connection
+pvesm status backup-pbs
+```
+
+**Web GUI Access**: **Datacenter → Storage → Add → Proxmox Backup Server**
+
+### Monitoring and Metrics Tools
+
+<Tabs items={['Prometheus Integration', 'InfluxDB Setup', 'Grafana Dashboards']}>
+<Tab value="Prometheus Integration">
+
+```bash
+# Install Prometheus node exporter
+apt install prometheus-node-exporter
+
+# Configure Proxmox metrics export
+# Add to /etc/pve/status.cfg
+prometheus:
+    server 192.168.1.100
+    port 9090
+```
+
+**Web GUI Access**: **Datacenter → Metric Server → Add**
+
+</Tab>
+<Tab value="InfluxDB Setup">
+
+```bash
+# Install InfluxDB
+apt install influxdb
+
+# Configure Proxmox InfluxDB integration
+# Add to /etc/pve/status.cfg
+influxdb:
+    server 192.168.1.100
+    port 8086
+    protocol https
+```
+
+</Tab>
+<Tab value="Grafana Dashboards">
+
+```bash
+# Install Grafana
+apt install grafana
+
+# Import Proxmox dashboard
+# Dashboard ID: 10347 (Proxmox VE Stats)
+# Dashboard ID: 10048 (Proxmox Summary)
+```
+
+**Popular Grafana Dashboards:**
+- Proxmox VE Stats (ID: 10347)
+- Proxmox Summary (ID: 10048)
+- Node Exporter Full (ID: 1860)
+
+</Tab>
+</Tabs>
+
+### Automation Scripts
+
+#### System Maintenance Script
+
+```bash
+#!/bin/bash
+# proxmox-maintenance.sh
+
+LOG_FILE="/var/log/proxmox-maintenance.log"
+DATE=$(date '+%Y-%m-%d %H:%M:%S')
+
+log_message() {
+    echo "$DATE - $1" >> $LOG_FILE
+}
+
+# Update system packages
+log_message "Starting system maintenance"
+apt update && apt upgrade -y
+
+# Clean up old kernels
+apt autoremove --purge -y
+
+# Check storage usage
+pvesm status >> $LOG_FILE
+
+# Verify cluster health (if clustered)
+if command -v pvecm &> /dev/null; then
+    pvecm status >> $LOG_FILE
+fi
+
+# Check VM/Container status
+qm list >> $LOG_FILE
+pct list >> $LOG_FILE
+
+log_message "Maintenance completed"
+```
+
+#### Backup Verification Script
+
+```bash
+#!/bin/bash
+# backup-verify.sh
+
+BACKUP_DIR="/var/lib/vz/dump"
+LOG_FILE="/var/log/backup-verification.log"
+
+# Check recent backups
+find $BACKUP_DIR -name "*.vma*" -mtime -1 | while read backup; do
+    echo "Verifying: $backup" >> $LOG_FILE
+    
+    # Test backup integrity
+    if qmrestore "$backup" 999 --dryrun &>/dev/null; then
+        echo "✓ Backup valid: $backup" >> $LOG_FILE
+    else
+        echo "✗ Backup corrupted: $backup" >> $LOG_FILE
+        # Send alert
+        echo "Corrupted backup detected: $backup" | mail -s "Backup Alert" admin@example.com
+    fi
+done
+```
+
+## Tool Comparison and Selection
+
+### When to Use Each Tool
+
+<Files>
+  <File name="tteck Helper Scripts">
+    - **Best for**: Quick application deployment
+    - **Use case**: Installing popular services
+    - **Skill level**: Beginner to intermediate
+    - **Maintenance**: Community-maintained
+  </File>
+  <File name="ProxMenu">
+    - **Best for**: Interactive system management
+    - **Use case**: Menu-driven administration
+    - **Skill level**: Beginner to advanced
+    - **Maintenance**: Actively maintained
+  </File>
+  <File name="PECU">
+    - **Best for**: Comprehensive system configuration
+    - **Use case**: Initial setup and optimization
+    - **Skill level**: Intermediate to advanced
+    - **Maintenance**: Community project
+  </File>
+</Files>
+
+### Installation Priority
+
+1. **First Priority**: tteck Post-Install Script (essential system setup)
+2. **Second Priority**: ProxMenu (ongoing management)
+3. **Third Priority**: PECU (advanced configuration)
+4. **Fourth Priority**: Monitoring tools (operational visibility)
+
+## Security Considerations
+
+<Callout type="warn">
+Always review scripts before execution and ensure they come from trusted sources. Consider running in test environments first.
+</Callout>
+
+### Best Practices
+
+- **Source Verification**: Only use scripts from official repositories
+- **Code Review**: Examine scripts before execution when possible
+- **Test Environment**: Test tools in non-production environments first
+- **Backup First**: Create backups before running system modification tools
+- **Regular Updates**: Keep tools updated to latest versions
+- **Access Control**: Limit tool access to authorized administrators
+
+### Security Checklist
+
+```bash
+# Verify script authenticity
+wget -O script.sh https://example.com/script.sh
+sha256sum script.sh  # Compare with published hash
+
+# Review script content
+less script.sh
+
+# Run with limited privileges when possible
+sudo -u limited-user ./script.sh
+
+# Monitor system changes
+journalctl -f &
+./script.sh
+```
+
+## Troubleshooting Common Issues
+
+### Tool Installation Problems
+
+<Tabs items={['Network Issues', 'Permission Problems', 'Dependency Conflicts']}>
+<Tab value="Network Issues">
+
+```bash
+# Check internet connectivity
+ping -c 4 8.8.8.8
+
+# Test HTTPS access
+curl -I https://github.com
+
+# Check DNS resolution
+nslookup github.com
+
+# Verify proxy settings (if applicable)
+echo $http_proxy
+echo $https_proxy
+```
+
+</Tab>
+<Tab value="Permission Problems">
+
+```bash
+# Check current user permissions
+whoami
+id
+
+# Verify sudo access
+sudo -l
+
+# Fix script permissions
+chmod +x script.sh
+
+# Check file ownership
+ls -la script.sh
+```
+
+</Tab>
+<Tab value="Dependency Conflicts">
+
+```bash
+# Update package lists
+apt update
+
+# Check for broken packages
+apt --fix-broken install
+
+# Resolve dependency issues
+apt autoremove
+apt autoclean
+
+# Check available disk space
+df -h
+```
+
+</Tab>
+</Tabs>
+
+### Performance Impact
+
+Monitor system resources when running tools:
+
+```bash
+# Monitor CPU and memory usage
+htop
+
+# Check I/O usage
+iotop
+
+# Monitor network usage
+nethogs
+
+# Check system load
+uptime
+```
+
+## Conclusion
+
+These essential tools significantly enhance the Proxmox VE experience by providing:
+
+- **Automation**: Reduced manual configuration effort
+- **Optimization**: Improved system performance
+- **Security**: Enhanced security posture
+- **Monitoring**: Better operational visibility
+- **Simplification**: User-friendly management interfaces
+
+<Callout type="info">
+Regular use of these tools, combined with proper maintenance practices, ensures optimal Proxmox VE performance and reliability.
+</Callout>

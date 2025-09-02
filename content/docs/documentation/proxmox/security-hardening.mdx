@@ -1,0 +1,1254 @@
+---
+title: Security Hardening
+description: Comprehensive security hardening guide for Proxmox VE infrastructure
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Security Hardening
+
+Securing your Proxmox VE infrastructure is critical for protecting virtualized workloads and maintaining compliance. This guide covers comprehensive security hardening measures from basic configurations to advanced security implementations.
+
+## Security Framework
+
+<Callout type="info">
+Implement defense-in-depth security strategies with multiple layers of protection for comprehensive infrastructure security.
+</Callout>
+
+### Security Layers
+
+<Files>
+  <File name="Physical Security">
+    - Server room access control
+    - Hardware security modules
+    - Secure boot configuration
+    - BIOS/UEFI protection
+  </File>
+  <File name="Network Security">
+    - Network segmentation
+    - Firewall configuration
+    - VPN access control
+    - Intrusion detection
+  </File>
+  <File name="System Security">
+    - User authentication
+    - Access control
+    - System hardening
+    - Audit logging
+  </File>
+  <File name="Application Security">
+    - VM/Container isolation
+    - Service hardening
+    - Data encryption
+    - Backup security
+  </File>
+</Files>
+
+## User Management and Authentication
+
+### User Account Security
+
+<Tabs items={['Web Interface', 'Command Line', 'Advanced Configuration']}>
+<Tab value="Web Interface">
+
+**User Management:**
+1. **Datacenter** → **Permissions** → **Users** → **Add**
+2. Configure user settings:
+   - **User name**: username@realm format
+   - **Password**: Strong password policy
+   - **Groups**: Assign to appropriate groups
+   - **Email**: For notifications and recovery
+   - **Enable**: Account status control
+   - **Expire**: Account expiration date
+
+**Group Management:**
+1. **Datacenter** → **Permissions** → **Groups** → **Add**
+2. Create role-based groups
+3. **Datacenter** → **Permissions** → **Add** to assign permissions
+
+</Tab>
+<Tab value="Command Line">
+
+```bash
+# Create security-focused user
+pveum user add security-admin@pve \
+  --firstname "Security" \
+  --lastname "Administrator" \
+  --email security@example.com \
+  --comment "Security administrator account"
+
+# Set strong password
+pveum passwd security-admin@pve
+
+# Create security group
+pveum group add security-team --comment "Security team members"
+
+# Add user to group
+pveum user modify security-admin@pve --groups security-team
+
+# Create custom security role
+pveum role add SecurityAuditor \
+  --privs "Sys.Audit,VM.Audit,Datastore.Audit,User.Modify,Group.Allocate"
+
+# Assign role to group
+pveum acl modify / --groups security-team --roles SecurityAuditor
+```
+
+</Tab>
+<Tab value="Advanced Configuration">
+
+```bash
+# Implement password policy
+cat > /etc/pve/user.cfg << 'EOF'
+# Password policy configuration
+user:root@pam:1:0::root@example.com::
+user:security-admin@pve:1:0:Security:Administrator:security@example.com::
+
+# Group definitions
+group:security-team:Security team members:
+group:vm-operators:VM operators:
+group:backup-admins:Backup administrators:
+EOF
+
+# Configure account lockout policy
+echo 'auth required pam_tally2.so deny=3 unlock_time=300' >> /etc/pam.d/common-auth
+```
+
+</Tab>
+</Tabs>
+
+### Two-Factor Authentication
+
+<Callout type="tip">
+Enable 2FA for all administrative accounts to significantly improve security posture.
+</Callout>
+
+<Tabs items={['TOTP Setup', 'Hardware Tokens', 'Recovery Codes']}>
+<Tab value="TOTP Setup">
+
+**Via Web Interface:**
+1. **Datacenter** → **Permissions** → **Two Factor**
+2. **Add** → **TOTP**
+3. Configure TOTP settings and scan QR code
+
+**Via Command Line:**
+```bash
+# Install OATH toolkit
+apt install libpam-oath oathtool
+
+# Generate TOTP secret
+SECRET=$(openssl rand -hex 20)
+echo "TOTP Secret: $SECRET"
+
+# Configure TOTP for user
+pveum user modify admin@pve --keys "totp:$SECRET"
+
+# Test TOTP generation
+oathtool --totp -b $SECRET
+```
+
+</Tab>
+<Tab value="Hardware Tokens">
+
+```bash
+# Configure YubiKey OATH
+# Install YubiKey tools
+apt install yubikey-manager
+
+# Program YubiKey with OATH credential
+ykman oath accounts add "Proxmox:admin@pve" --issuer "Proxmox VE"
+
+# Configure Proxmox for hardware token
+pveum user modify admin@pve --keys "oath:$(ykman oath accounts code 'Proxmox:admin@pve' | cut -d' ' -f2)"
+```
+
+</Tab>
+<Tab value="Recovery Codes">
+
+```bash
+# Generate recovery codes
+for i in {1..10}; do
+    openssl rand -hex 8
+done > /secure/location/recovery-codes-admin.txt
+
+# Secure recovery codes
+chmod 600 /secure/location/recovery-codes-admin.txt
+chown root:root /secure/location/recovery-codes-admin.txt
+```
+
+</Tab>
+</Tabs>
+
+### Role-Based Access Control (RBAC)
+
+<Files>
+  <File name="Built-in Roles">
+    - Administrator: Full system access
+    - PVEVMAdmin: VM/Container management
+    - PVEDatastoreAdmin: Storage management
+    - PVEPoolAdmin: Resource pool management
+    - PVEVMUser: Basic VM operations
+    - PVEAuditor: Read-only access
+  </File>
+  <File name="Custom Roles">
+    - SecurityAuditor: Security monitoring
+    - BackupOperator: Backup management
+    - NetworkAdmin: Network configuration
+    - VMOperator: Limited VM operations
+  </File>
+</Files>
+
+```bash
+# Create custom security roles
+pveum role add SecurityAuditor \
+  --privs "Sys.Audit,VM.Audit,Datastore.Audit,Pool.Audit"
+
+pveum role add BackupOperator \
+  --privs "VM.Backup,Datastore.AllocateSpace,VM.PowerMgmt"
+
+pveum role add NetworkAdmin \
+  --privs "Sys.Modify,VM.Config.Network,Datastore.Allocate"
+
+pveum role add VMOperator \
+  --privs "VM.PowerMgmt,VM.Console,VM.Monitor,VM.Snapshot"
+
+# Assign roles with specific paths
+pveum acl modify /vms/100 --users vm-user@pve --roles VMOperator
+pveum acl modify /storage/backup --users backup-user@pve --roles BackupOperator
+pveum acl modify /nodes --users network-admin@pve --roles NetworkAdmin
+```
+
+## Network Security
+
+### Firewall Configuration
+
+<Callout type="warn">
+Implement firewall rules carefully to avoid locking yourself out of the system. Always test rules in a safe environment first.
+</Callout>
+
+<Tabs items={['Datacenter Firewall', 'Node Firewall', 'VM/CT Firewall']}>
+<Tab value="Datacenter Firewall">
+
+**Via Web Interface:**
+1. **Datacenter** → **Firewall** → **Options** → Enable firewall
+2. **Datacenter** → **Firewall** → **Rules** → Add rules
+
+**Via Configuration Files:**
+```bash
+# /etc/pve/firewall/cluster.fw
+[OPTIONS]
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+log_level_in: info
+log_level_out: info
+
+[ALIASES]
+management_net 192.168.1.0/24
+admin_hosts 192.168.1.10,192.168.1.11
+backup_server 192.168.1.200
+
+[IPSET management_ips]
+192.168.1.10
+192.168.1.11
+192.168.1.12
+
+[RULES]
+# Management access
+IN SSH(ACCEPT) -source +management_ips -log nolog
+IN ACCEPT -p tcp -dport 8006 -source +management_ips -log nolog
+
+# Cluster communication
+IN ACCEPT -source +management_net -p tcp -dport 5404:5405
+IN ACCEPT -source +management_net -p udp -dport 5404:5405
+
+# NTP
+OUT NTP(ACCEPT) -log nolog
+
+# DNS
+OUT DNS(ACCEPT) -log nolog
+
+# Drop everything else
+IN DROP -log info
+```
+
+</Tab>
+<Tab value="Node Firewall">
+
+```bash
+# /etc/pve/nodes/proxmox1/host.fw
+[OPTIONS]
+enable: 1
+log_level_in: info
+log_level_out: info
+
+[RULES]
+# IPMI access (restricted)
+IN ACCEPT -p tcp -dport 623 -source 192.168.100.0/24
+
+# Monitoring
+IN ACCEPT -p tcp -dport 9100 -source 192.168.1.250  # Prometheus
+IN ACCEPT -p tcp -dport 8089 -source 192.168.1.251  # Splunk
+
+# Backup traffic
+IN ACCEPT -p tcp -dport 8007 -source +backup_server  # PBS
+
+# Log denied connections
+IN DROP -log info
+```
+
+</Tab>
+<Tab value="VM/CT Firewall">
+
+```bash
+# /etc/pve/firewall/100.fw (VM 100)
+[OPTIONS]
+enable: 1
+dhcp: 1
+log_level_in: info
+macfilter: 1
+policy_in: DROP
+policy_out: ACCEPT
+
+[RULES]
+# Web server rules
+IN HTTP(ACCEPT) -log nolog
+IN HTTPS(ACCEPT) -log nolog
+
+# SSH from management network only
+IN SSH(ACCEPT) -source +management_net -log nolog
+
+# Database access (internal only)
+IN ACCEPT -p tcp -dport 3306 -source 192.168.1.0/24
+
+# Drop and log everything else
+IN DROP -log info
+```
+
+</Tab>
+</Tabs>
+
+### Security Groups
+
+<Tabs items={['Web Server Group', 'Database Group', 'Management Group']}>
+<Tab value="Web Server Group">
+
+```bash
+# /etc/pve/firewall/cluster.fw
+[group web-servers]
+IN HTTP(ACCEPT) -log nolog
+IN HTTPS(ACCEPT) -log nolog
+IN SSH(ACCEPT) -source +management_net -log nolog
+OUT NTP(ACCEPT) -log nolog
+OUT DNS(ACCEPT) -log nolog
+OUT HTTP(ACCEPT) -dest +update_servers -log nolog
+OUT HTTPS(ACCEPT) -dest +update_servers -log nolog
+
+# Apply to VM
+# /etc/pve/firewall/101.fw
+[OPTIONS]
+enable: 1
+policy_in: DROP
+policy_out: DROP
+
+[RULES]
+GROUP web-servers
+```
+
+</Tab>
+<Tab value="Database Group">
+
+```bash
+[group database-servers]
+IN ACCEPT -p tcp -dport 3306 -source +app_servers -log nolog
+IN ACCEPT -p tcp -dport 5432 -source +app_servers -log nolog
+IN SSH(ACCEPT) -source +management_net -log nolog
+OUT NTP(ACCEPT) -log nolog
+OUT DNS(ACCEPT) -log nolog
+OUT ACCEPT -p tcp -dport 3306 -dest +backup_server -log nolog
+```
+
+</Tab>
+<Tab value="Management Group">
+
+```bash
+[group management-servers]
+IN SSH(ACCEPT) -source +management_net -log nolog
+IN ACCEPT -p tcp -dport 161 -source +monitoring_servers -log nolog
+OUT NTP(ACCEPT) -log nolog
+OUT DNS(ACCEPT) -log nolog
+OUT SMTP(ACCEPT) -dest +mail_servers -log nolog
+OUT ACCEPT -p tcp -dport 514 -dest +syslog_servers -log nolog
+```
+
+</Tab>
+</Tabs>
+
+### Network Segmentation
+
+<Files>
+  <File name="Management Network">
+    - Proxmox web interface access
+    - SSH administrative access
+    - IPMI/BMC access
+    - Monitoring and logging
+  </File>
+  <File name="Production Network">
+    - VM/Container traffic
+    - Application services
+    - User access
+    - Load balancer traffic
+  </File>
+  <File name="Storage Network">
+    - Shared storage traffic
+    - Backup operations
+    - Replication traffic
+    - High-bandwidth operations
+  </File>
+  <File name="Cluster Network">
+    - Corosync communication
+    - Migration traffic
+    - HA coordination
+    - Internal cluster services
+  </File>
+</Files>
+
+```bash
+# Network segmentation configuration
+# Management VLAN 100
+auto vmbr0.100
+iface vmbr0.100 inet static
+    address 192.168.100.10/24
+    vlan-raw-device vmbr0
+
+# Production VLAN 200
+auto vmbr0.200
+iface vmbr0.200 inet static
+    address 192.168.200.10/24
+    vlan-raw-device vmbr0
+
+# Storage VLAN 300
+auto vmbr0.300
+iface vmbr0.300 inet static
+    address 192.168.300.10/24
+    vlan-raw-device vmbr0
+
+# Cluster network (dedicated interface)
+auto eth1
+iface eth1 inet static
+    address 10.0.0.10/24
+```
+
+## SSL/TLS Configuration
+
+### Certificate Management
+
+<Callout type="info">
+Use proper SSL certificates to ensure secure communication and prevent man-in-the-middle attacks.
+</Callout>
+
+<Tabs items={['Self-Signed Certificates', 'Let\'s Encrypt', 'Custom CA']}>
+<Tab value="Self-Signed Certificates">
+
+```bash
+# Generate custom SSL certificate
+openssl req -x509 -newkey rsa:4096 \
+  -keyout /etc/pve/local/pve-ssl.key \
+  -out /etc/pve/local/pve-ssl.pem \
+  -days 365 -nodes \
+  -subj "/C=US/ST=State/L=City/O=Organization/CN=proxmox.example.com"
+
+# Set proper permissions
+chmod 600 /etc/pve/local/pve-ssl.key
+chmod 644 /etc/pve/local/pve-ssl.pem
+
+# Restart web service
+systemctl restart pveproxy
+```
+
+</Tab>
+<Tab value="Let's Encrypt">
+
+**Via Web Interface:**
+1. **Node** → **Certificates** → **ACME** → **Add Account**
+2. **Node** → **Certificates** → **Add** → **ACME Certificate**
+
+**Via Command Line:**
+```bash
+# Register ACME account
+pvenode acme account register default \
+  --mail admin@example.com \
+  --directory https://acme-v02.api.letsencrypt.org/directory
+
+# Add domain plugin (DNS challenge)
+pvenode acme plugin add dns-cloudflare \
+  --type dns \
+  --api cloudflare \
+  --data api_token=your_cloudflare_token
+
+# Order certificate
+pvenode config set --acme domains=proxmox.example.com
+pvenode acme cert order
+
+# Set up automatic renewal
+echo '0 3 * * * root pvenode acme cert order' >> /etc/crontab
+```
+
+</Tab>
+<Tab value="Custom CA">
+
+```bash
+# Create custom CA
+openssl genrsa -out ca-key.pem 4096
+openssl req -new -x509 -days 3650 -key ca-key.pem -out ca-cert.pem \
+  -subj "/C=US/ST=State/L=City/O=Organization/CN=Internal CA"
+
+# Generate server certificate request
+openssl genrsa -out server-key.pem 4096
+openssl req -new -key server-key.pem -out server-csr.pem \
+  -subj "/C=US/ST=State/L=City/O=Organization/CN=proxmox.example.com"
+
+# Sign server certificate
+openssl x509 -req -days 365 -in server-csr.pem \
+  -CA ca-cert.pem -CAkey ca-key.pem -CAcreateserial \
+  -out server-cert.pem
+
+# Install certificate
+cp server-cert.pem /etc/pve/local/pve-ssl.pem
+cp server-key.pem /etc/pve/local/pve-ssl.key
+systemctl restart pveproxy
+```
+
+</Tab>
+</Tabs>
+
+### TLS Configuration
+
+```bash
+# Harden TLS configuration
+# /etc/default/pveproxy
+CIPHERS="ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256"
+HONOR_CIPHER_ORDER=1
+DISABLE_TLS_1_0=1
+DISABLE_TLS_1_1=1
+
+# Restart proxy service
+systemctl restart pveproxy
+
+# Test TLS configuration
+openssl s_client -connect proxmox.example.com:8006 -tls1_2
+```
+
+## System Hardening
+
+### SSH Hardening
+
+<Tabs items={['SSH Configuration', 'Key Management', 'Access Control']}>
+<Tab value="SSH Configuration">
+
+```bash
+# /etc/ssh/sshd_config hardening
+cat >> /etc/ssh/sshd_config << 'EOF'
+# Security hardening
+Protocol 2
+Port 2222
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding no
+AllowTcpForwarding no
+AllowAgentForwarding no
+GatewayPorts no
+PermitTunnel no
+ClientAliveInterval 300
+ClientAliveCountMax 2
+MaxAuthTries 3
+MaxSessions 2
+LoginGraceTime 60
+
+# Restrict users and groups
+AllowUsers admin backup-user
+AllowGroups ssh-users
+
+# Logging
+SyslogFacility AUTH
+LogLevel VERBOSE
+
+# Crypto settings
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512
+KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
+EOF
+
+# Restart SSH service
+systemctl restart sshd
+```
+
+</Tab>
+<Tab value="Key Management">
+
+```bash
+# Generate strong SSH keys
+ssh-keygen -t ed25519 -b 4096 -f ~/.ssh/id_ed25519 -C "admin@proxmox"
+
+# Or RSA if ed25519 not supported
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -C "admin@proxmox"
+
+# Deploy public key
+ssh-copy-id -i ~/.ssh/id_ed25519.pub admin@proxmox.example.com
+
+# Secure authorized_keys
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+
+# Key rotation script
+#!/bin/bash
+# rotate-ssh-keys.sh
+OLD_KEY="old_key.pub"
+NEW_KEY="new_key.pub"
+
+# Remove old key
+sed -i "/$OLD_KEY/d" ~/.ssh/authorized_keys
+
+# Add new key
+cat $NEW_KEY >> ~/.ssh/authorized_keys
+```
+
+</Tab>
+<Tab value="Access Control">
+
+```bash
+# Create SSH access group
+groupadd ssh-users
+
+# Add users to SSH group
+usermod -a -G ssh-users admin
+usermod -a -G ssh-users backup-user
+
+# Configure sudo access
+cat > /etc/sudoers.d/proxmox-admins << 'EOF'
+# Proxmox administrators
+%ssh-users ALL=(ALL) NOPASSWD: /usr/bin/pvesh, /usr/bin/qm, /usr/bin/pct
+%ssh-users ALL=(ALL) PASSWD: ALL
+EOF
+
+# SSH banner
+cat > /etc/ssh/banner << 'EOF'
+***************************************************************************
+                    AUTHORIZED ACCESS ONLY
+This system is for authorized users only. All activities are monitored
+and logged. Unauthorized access is prohibited and will be prosecuted.
+***************************************************************************
+EOF
+
+echo 'Banner /etc/ssh/banner' >> /etc/ssh/sshd_config
+```
+
+</Tab>
+</Tabs>
+
+### Kernel Hardening
+
+```bash
+# /etc/sysctl.d/99-security.conf
+cat > /etc/sysctl.d/99-security.conf << 'EOF'
+# Network security
+net.ipv4.ip_forward = 1
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+net.ipv4.tcp_syncookies = 1
+
+# IPv6 security
+net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.default.accept_ra = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+
+# Kernel security
+kernel.dmesg_restrict = 1
+kernel.kptr_restrict = 2
+kernel.yama.ptrace_scope = 1
+kernel.core_uses_pid = 1
+fs.suid_dumpable = 0
+
+# Memory protection
+vm.mmap_min_addr = 65536
+EOF
+
+# Apply settings
+sysctl -p /etc/sysctl.d/99-security.conf
+```
+
+### File System Security
+
+<Tabs items={['Mount Options', 'File Permissions', 'Audit Configuration']}>
+<Tab value="Mount Options">
+
+```bash
+# Secure mount options in /etc/fstab
+# Example entries with security options
+/dev/sda1 / ext4 defaults,nodev,nosuid,noexec 0 1
+/dev/sda2 /var ext4 defaults,nodev,nosuid 0 2
+/dev/sda3 /tmp ext4 defaults,nodev,nosuid,noexec 0 2
+/dev/sda4 /home ext4 defaults,nodev,nosuid 0 2
+
+# Secure /tmp with tmpfs
+echo 'tmpfs /tmp tmpfs defaults,nodev,nosuid,noexec,size=2G 0 0' >> /etc/fstab
+
+# Remount with new options
+mount -o remount /tmp
+```
+
+</Tab>
+<Tab value="File Permissions">
+
+```bash
+# Secure important files
+chmod 600 /etc/pve/priv/authkey.key
+chmod 600 /etc/pve/priv/pve-root-ca.key
+chmod 644 /etc/pve/pve-root-ca.pem
+
+# Secure log files
+chmod 640 /var/log/auth.log
+chmod 640 /var/log/syslog
+chown root:adm /var/log/auth.log
+chown root:adm /var/log/syslog
+
+# Remove world-readable permissions from sensitive files
+find /etc -type f -perm -004 -exec chmod o-r {} \;
+
+# Set proper ownership for Proxmox files
+chown -R root:www-data /etc/pve
+chmod -R g+r /etc/pve
+```
+
+</Tab>
+<Tab value="Audit Configuration">
+
+```bash
+# Install auditd
+apt install auditd audispd-plugins
+
+# Configure audit rules
+cat > /etc/audit/rules.d/proxmox.rules << 'EOF'
+# Monitor Proxmox configuration changes
+-w /etc/pve/ -p wa -k proxmox-config
+-w /etc/network/interfaces -p wa -k network-config
+-w /etc/ssh/sshd_config -p wa -k ssh-config
+
+# Monitor authentication
+-w /var/log/auth.log -p wa -k auth-log
+-w /etc/passwd -p wa -k passwd-changes
+-w /etc/group -p wa -k group-changes
+-w /etc/shadow -p wa -k shadow-changes
+
+# Monitor system calls
+-a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time-change
+-a always,exit -F arch=b64 -S clock_settime -k time-change
+-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts
+-a always,exit -F arch=b64 -S unlink -S unlinkat -S rename -S renameat -F auid>=1000 -F auid!=4294967295 -k delete
+EOF
+
+# Restart auditd
+systemctl restart auditd
+systemctl enable auditd
+```
+
+</Tab>
+</Tabs>
+
+## VM and Container Security
+
+### Container Security
+
+<Callout type="warn">
+Use unprivileged containers whenever possible to reduce security risks and improve isolation.
+</Callout>
+
+<Tabs items={['Unprivileged Containers', 'AppArmor Profiles', 'Resource Limits']}>
+<Tab value="Unprivileged Containers">
+
+```bash
+# Create unprivileged container
+pct create 200 local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst \
+  --unprivileged 1 \
+  --hostname secure-container \
+  --memory 1024 \
+  --cores 2 \
+  --rootfs local-lvm:8 \
+  --net0 name=eth0,bridge=vmbr0,ip=dhcp
+
+# Configure user namespace mapping
+echo 'root:100000:65536' >> /etc/subuid
+echo 'root:100000:65536' >> /etc/subgid
+
+# Enable security features
+pct set 200 --features nesting=0,keyctl=0,fuse=0
+pct set 200 --protection 1
+```
+
+</Tab>
+<Tab value="AppArmor Profiles">
+
+```bash
+# Enable AppArmor for container
+pct set 200 --lxc.apparmor.profile=lxc-container-default-cgns
+
+# Custom AppArmor profile
+cat > /etc/apparmor.d/lxc-container-secure << 'EOF'
+#include <tunables/global>
+
+profile lxc-container-secure flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/lxc/container-base>
+  
+  # Deny dangerous capabilities
+  deny capability sys_admin,
+  deny capability sys_module,
+  deny capability sys_rawio,
+  deny capability sys_time,
+  
+  # Restrict network access
+  network inet tcp,
+  network inet udp,
+  deny network packet,
+  deny network raw,
+  
+  # File system restrictions
+  deny /proc/sys/kernel/** w,
+  deny /sys/kernel/security/** rw,
+  deny /sys/devices/virtual/powercap/** rw,
+}
+EOF
+
+# Load profile
+apparmor_parser -r /etc/apparmor.d/lxc-container-secure
+
+# Apply to container
+pct set 200 --lxc.apparmor.profile=lxc-container-secure
+```
+
+</Tab>
+<Tab value="Resource Limits">
+
+```bash
+# Set strict resource limits
+pct set 200 --cpulimit 0.5  # 50% CPU limit
+pct set 200 --cpuunits 512  # Lower CPU priority
+pct set 200 --memory 1024   # 1GB RAM limit
+pct set 200 --swap 256      # 256MB swap
+
+# I/O limits
+echo 'lxc.cgroup2.io.weight = 100' >> /etc/pve/lxc/200.conf
+echo 'lxc.cgroup2.io.max = 8:0 rbps=10485760 wbps=10485760' >> /etc/pve/lxc/200.conf
+
+# Network limits
+pct set 200 --net0 name=eth0,bridge=vmbr0,rate=10,ip=dhcp
+
+# Process limits
+echo 'lxc.cgroup2.pids.max = 1024' >> /etc/pve/lxc/200.conf
+```
+
+</Tab>
+</Tabs>
+
+### VM Security
+
+<Files>
+  <File name="Secure Boot">
+    - UEFI firmware configuration
+    - Secure boot enablement
+    - TPM module integration
+    - Boot integrity verification
+  </File>
+  <File name="Isolation">
+    - CPU isolation and pinning
+    - Memory isolation
+    - I/O device isolation
+    - Network segmentation
+  </File>
+  <File name="Encryption">
+    - Disk encryption
+    - Network encryption
+    - Memory encryption
+    - Backup encryption
+  </File>
+</Files>
+
+```bash
+# Create secure VM configuration
+qm create 300 \
+  --name "secure-vm" \
+  --memory 4096 \
+  --cores 2 \
+  --cpu host \
+  --machine q35 \
+  --bios ovmf \
+  --efidisk0 local-lvm:1,format=qcow2 \
+  --scsi0 local-lvm:32,format=qcow2,cache=none,iothread=1 \
+  --scsihw virtio-scsi-pci \
+  --net0 virtio,bridge=vmbr0,firewall=1 \
+  --ostype l26 \
+  --boot order=scsi0 \
+  --protection 1
+
+# Enable TPM
+qm set 300 --tpmstate0 local-lvm:1,version=v2.0
+
+# Configure secure network
+qm set 300 --net0 virtio,bridge=vmbr0,firewall=1,queues=2
+
+# CPU security features
+qm set 300 --cpu host,flags=+spec-ctrl,+ssbd,+md-clear
+```
+
+## Monitoring and Logging
+
+### Security Monitoring
+
+<Tabs items={['Log Analysis', 'Intrusion Detection', 'Performance Monitoring']}>
+<Tab value="Log Analysis">
+
+```bash
+# Centralized logging configuration
+# /etc/rsyslog.d/50-proxmox.conf
+cat > /etc/rsyslog.d/50-proxmox.conf << 'EOF'
+# Proxmox security logs
+auth,authpriv.*                 @@192.168.1.250:514
+daemon.info                     @@192.168.1.250:514
+kern.warning                    @@192.168.1.250:514
+
+# Local security log
+auth,authpriv.*                 /var/log/security.log
+EOF
+
+# Log rotation for security logs
+cat > /etc/logrotate.d/security << 'EOF'
+/var/log/security.log {
+    weekly
+    rotate 52
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 640 root adm
+    postrotate
+        systemctl reload rsyslog
+    endscript
+}
+EOF
+
+# Security log analysis script
+#!/bin/bash
+# security-analysis.sh
+LOG_FILE="/var/log/security.log"
+ALERT_EMAIL="security@example.com"
+
+# Check for failed login attempts
+FAILED_LOGINS=$(grep "Failed password" $LOG_FILE | wc -l)
+if [ $FAILED_LOGINS -gt 10 ]; then
+    echo "High number of failed logins: $FAILED_LOGINS" | mail -s "Security Alert" $ALERT_EMAIL
+fi
+
+# Check for privilege escalation
+SUDO_FAILURES=$(grep "sudo.*FAILED" $LOG_FILE | wc -l)
+if [ $SUDO_FAILURES -gt 5 ]; then
+    echo "Multiple sudo failures detected: $SUDO_FAILURES" | mail -s "Security Alert" $ALERT_EMAIL
+fi
+```
+
+</Tab>
+<Tab value="Intrusion Detection">
+
+```bash
+# Install and configure fail2ban
+apt install fail2ban
+
+# /etc/fail2ban/jail.local
+cat > /etc/fail2ban/jail.local << 'EOF'
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+backend = systemd
+
+[sshd]
+enabled = true
+port = 2222
+logpath = /var/log/auth.log
+maxretry = 3
+
+[proxmox-web]
+enabled = true
+port = 8006
+filter = proxmox-web
+logpath = /var/log/daemon.log
+maxretry = 3
+
+[postfix-sasl]
+enabled = true
+port = smtp,465,submission
+filter = postfix-sasl
+logpath = /var/log/mail.log
+maxretry = 3
+EOF
+
+# Custom filter for Proxmox web interface
+cat > /etc/fail2ban/filter.d/proxmox-web.conf << 'EOF'
+[Definition]
+failregex = pveproxy\[.*authentication failure.*rhost=<HOST>
+ignoreregex =
+EOF
+
+# Start fail2ban
+systemctl enable fail2ban
+systemctl start fail2ban
+```
+
+</Tab>
+<Tab value="Performance Monitoring">
+
+```bash
+# Security-focused monitoring script
+#!/bin/bash
+# security-monitor.sh
+
+LOGFILE="/var/log/security-monitor.log"
+DATE=$(date '+%Y-%m-%d %H:%M:%S')
+
+# Check system load
+LOAD=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
+if (( $(echo "$LOAD > 5.0" | bc -l) )); then
+    echo "$DATE - High system load: $LOAD" >> $LOGFILE
+fi
+
+# Check memory usage
+MEM_USAGE=$(free | grep Mem | awk '{printf("%.2f", $3/$2 * 100.0)}')
+if (( $(echo "$MEM_USAGE > 90" | bc -l) )); then
+    echo "$DATE - High memory usage: $MEM_USAGE%" >> $LOGFILE
+fi
+
+# Check disk usage
+DISK_USAGE=$(df / | awk 'NR==2{print $5}' | sed 's/%//')
+if [ $DISK_USAGE -gt 85 ]; then
+    echo "$DATE - High disk usage: $DISK_USAGE%" >> $LOGFILE
+fi
+
+# Check active connections
+CONNECTIONS=$(ss -tuln | wc -l)
+if [ $CONNECTIONS -gt 1000 ]; then
+    echo "$DATE - High connection count: $CONNECTIONS" >> $LOGFILE
+fi
+
+# Check for suspicious processes
+ps aux | grep -E "(nc|netcat|nmap|tcpdump)" | grep -v grep >> $LOGFILE
+```
+
+</Tab>
+</Tabs>
+
+### Compliance and Auditing
+
+<Files>
+  <File name="Compliance Standards">
+    - PCI DSS requirements
+    - HIPAA compliance
+    - SOX compliance
+    - GDPR requirements
+  </File>
+  <File name="Audit Requirements">
+    - Access logging
+    - Change tracking
+    - Data retention
+    - Incident response
+  </File>
+</Files>
+
+```bash
+# Compliance audit script
+#!/bin/bash
+# compliance-audit.sh
+
+AUDIT_DIR="/var/log/compliance"
+mkdir -p $AUDIT_DIR
+
+# System configuration audit
+echo "=== System Configuration Audit ===" > $AUDIT_DIR/system-audit.log
+echo "Date: $(date)" >> $AUDIT_DIR/system-audit.log
+echo >> $AUDIT_DIR/system-audit.log
+
+# Check user accounts
+echo "User Accounts:" >> $AUDIT_DIR/system-audit.log
+pveum user list >> $AUDIT_DIR/system-audit.log
+echo >> $AUDIT_DIR/system-audit.log
+
+# Check permissions
+echo "Permission Assignments:" >> $AUDIT_DIR/system-audit.log
+pveum acl list >> $AUDIT_DIR/system-audit.log
+echo >> $AUDIT_DIR/system-audit.log
+
+# Check firewall status
+echo "Firewall Status:" >> $AUDIT_DIR/system-audit.log
+cat /etc/pve/firewall/cluster.fw >> $AUDIT_DIR/system-audit.log
+echo >> $AUDIT_DIR/system-audit.log
+
+# Check SSL certificates
+echo "SSL Certificate Status:" >> $AUDIT_DIR/system-audit.log
+openssl x509 -in /etc/pve/local/pve-ssl.pem -text -noout | grep -E "(Subject|Issuer|Not Before|Not After)" >> $AUDIT_DIR/system-audit.log
+
+# Generate compliance report
+echo "Compliance audit completed: $(date)" >> $AUDIT_DIR/audit-summary.log
+```
+
+## Backup Security
+
+### Encrypted Backups
+
+<Callout type="info">
+Implement backup encryption to protect data at rest and during transmission.
+</Callout>
+
+```bash
+# Encrypted backup script
+#!/bin/bash
+# encrypted-backup.sh
+
+BACKUP_DIR="/backup/encrypted"
+GPG_RECIPIENT="backup@example.com"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Create encrypted VM backup
+vzdump 100 --stdout | gpg --trust-model always --encrypt -r $GPG_RECIPIENT > $BACKUP_DIR/vm-100-$DATE.vma.gpg
+
+# Verify backup integrity
+gpg --decrypt $BACKUP_DIR/vm-100-$DATE.vma.gpg | qmrestore - 999 --dryrun
+
+# Secure backup storage
+chmod 600 $BACKUP_DIR/*.gpg
+chown backup:backup $BACKUP_DIR/*.gpg
+```
+
+### Backup Verification
+
+```bash
+# Backup verification script
+#!/bin/bash
+# verify-backups.sh
+
+BACKUP_DIR="/var/lib/vz/dump"
+LOG_FILE="/var/log/backup-verification.log"
+
+for backup in $BACKUP_DIR/*.vma*; do
+    echo "Verifying: $backup" >> $LOG_FILE
+    
+    # Test backup integrity
+    if qmrestore "$backup" 999 --dryrun &>/dev/null; then
+        echo "✓ Backup valid: $backup" >> $LOG_FILE
+    else
+        echo "✗ Backup corrupted: $backup" >> $LOG_FILE
+        # Alert security team
+        echo "Corrupted backup detected: $backup" | mail -s "Backup Security Alert" security@example.com
+    fi
+done
+```
+
+## Incident Response
+
+### Security Incident Procedures
+
+<Files>
+  <File name="Detection">
+    - Automated monitoring alerts
+    - Log analysis triggers
+    - Performance anomalies
+    - User reports
+  </File>
+  <File name="Response">
+    - Incident classification
+    - Containment procedures
+    - Evidence collection
+    - Communication protocols
+  </File>
+  <File name="Recovery">
+    - System restoration
+    - Service recovery
+    - Security improvements
+    - Lessons learned
+  </File>
+</Files>
+
+```bash
+# Incident response script
+#!/bin/bash
+# incident-response.sh
+
+INCIDENT_ID="INC-$(date +%Y%m%d-%H%M%S)"
+INCIDENT_DIR="/var/log/incidents/$INCIDENT_ID"
+mkdir -p $INCIDENT_DIR
+
+# Collect system information
+echo "=== Incident Response: $INCIDENT_ID ===" > $INCIDENT_DIR/incident-report.log
+echo "Date: $(date)" >> $INCIDENT_DIR/incident-report.log
+echo "Detected by: $USER" >> $INCIDENT_DIR/incident-report.log
+echo >> $INCIDENT_DIR/incident-report.log
+
+# System snapshot
+ps aux > $INCIDENT_DIR/processes.log
+netstat -tuln > $INCIDENT_DIR/network.log
+ss -tuln > $INCIDENT_DIR/sockets.log
+lsof > $INCIDENT_DIR/open-files.log
+
+# Security logs
+cp /var/log/auth.log $INCIDENT_DIR/
+cp /var/log/syslog $INCIDENT_DIR/
+cp /var/log/daemon.log $INCIDENT_DIR/
+
+# Proxmox specific logs
+cp /var/log/pveproxy/access.log $INCIDENT_DIR/
+journalctl -u pve-cluster > $INCIDENT_DIR/cluster.log
+
+# Create forensic image (if needed)
+# dd if=/dev/sda of=$INCIDENT_DIR/disk-image.dd bs=4M
+
+echo "Incident data collected in: $INCIDENT_DIR"
+echo "Incident $INCIDENT_ID reported at $(date)" | mail -s "Security Incident" security@example.com
+```
+
+## Security Best Practices Summary
+
+### Implementation Checklist
+
+- **✓ User Management**: Strong passwords, 2FA, RBAC
+- **✓ Network Security**: Firewall rules, segmentation, VPNs
+- **✓ System Hardening**: SSH, kernel, filesystem security
+- **✓ SSL/TLS**: Proper certificates and configuration
+- **✓ Monitoring**: Logging, intrusion detection, auditing
+- **✓ Backup Security**: Encryption, verification, testing
+- **✓ Incident Response**: Procedures, tools, communication
+
+### Regular Security Tasks
+
+- **Daily**: Monitor security logs and alerts
+- **Weekly**: Review user access and permissions
+- **Monthly**: Update systems and security patches
+- **Quarterly**: Security audit and penetration testing
+- **Annually**: Security policy review and training
+
+<Callout type="info">
+Security is an ongoing process that requires continuous monitoring, regular updates, and proactive threat management.
+</Callout>

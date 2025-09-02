@@ -1,0 +1,688 @@
+---
+title: Tailscale Proxmox Scripts
+description: Automated Tailscale setup and configuration scripts for Proxmox LXC containers with network optimization
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Tailscale Proxmox Scripts
+
+Automated scripts for setting up Tailscale in Proxmox LXC containers with proper network configuration and optimizations. These scripts simplify the process of creating secure mesh networks using Tailscale within containerized environments.
+
+## Overview
+
+<Callout type="info">
+These scripts automate the complex process of configuring LXC containers for Tailscale, including device permissions, network optimizations, and subnet routing.
+</Callout>
+
+### What is Tailscale?
+
+Tailscale is a zero-config VPN built on WireGuard that creates secure networks between your devices. It provides:
+
+- **Zero-configuration networking**: Automatic mesh network setup
+- **End-to-end encryption**: Built on WireGuard protocol
+- **Cross-platform support**: Works on all major platforms
+- **Subnet routing**: Route traffic through specific nodes
+- **Exit nodes**: Use devices as internet gateways
+
+### Script Components
+
+<Files>
+  <File name="hypervisor-ct-conf.sh">
+    - Configures LXC container for Tailscale
+    - Adds necessary device permissions
+    - Sets up TUN/TAP interface access
+    - Must be run on Proxmox host
+  </File>
+  <File name="tailscale.sh">
+    - Installs and configures Tailscale
+    - Sets up network optimizations
+    - Configures subnet routing
+    - Runs inside the LXC container
+  </File>
+</Files>
+
+## Prerequisites
+
+### System Requirements
+
+- **Proxmox VE** 7.0 or later
+- **LXC container** (privileged or unprivileged)
+- **Internet connectivity** for downloading Tailscale
+- **Tailscale account** with authentication key
+
+### Network Planning
+
+<Callout type="warn">
+Plan your subnet routing carefully. Overlapping subnets can cause routing conflicts.
+</Callout>
+
+Consider these network aspects:
+- **Local subnets** to advertise through Tailscale
+- **Tailscale subnet** (automatically assigned)
+- **Exit node requirements** (if needed)
+- **Firewall rules** for container access
+
+## Script Usage
+
+### Step 1: Container Configuration Script (Proxmox Host)
+
+<Tabs items={['Automated Script', 'Manual Configuration']}>
+<Tab value="Automated Script">
+
+Run the hypervisor configuration script on your Proxmox host:
+
+```bash
+# Download and run the container configuration script
+bash -c "$(wget -qO - https://gitlab.j551n.com/j551n/tailscale_scripts/-/raw/main/hypervisor-ct-conf.sh)"
+```
+
+**What this script does:**
+1. Lists all available LXC containers
+2. Prompts you to select target container
+3. Adds Tailscale device permissions to container config
+4. Configures TUN/TAP interface access
+
+</Tab>
+<Tab value="Manual Configuration">
+
+If you prefer manual configuration, add these lines to your container config:
+
+```bash
+# Edit container configuration
+nano /etc/pve/lxc/[CONTAINER_ID].conf
+
+# Add these lines:
+lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+```
+
+**Configuration explanation:**
+- `lxc.cgroup2.devices.allow: c 10:200 rwm`: Allows access to TUN device
+- `lxc.mount.entry`: Mounts TUN interface into container
+
+</Tab>
+</Tabs>
+
+### Step 2: Reboot Container
+
+<Callout type="warn">
+Container reboot is required for device permissions to take effect.
+</Callout>
+
+```bash
+# Reboot the container
+pct reboot [CONTAINER_ID]
+
+# Or stop and start
+pct stop [CONTAINER_ID]
+pct start [CONTAINER_ID]
+```
+
+### Step 3: Tailscale Installation Script (Inside Container)
+
+<Tabs items={['Automated Installation', 'Manual Installation']}>
+<Tab value="Automated Installation">
+
+Enter your LXC container and run the Tailscale installation script:
+
+```bash
+# Enter container console
+pct enter [CONTAINER_ID]
+
+# Run Tailscale installation script
+bash -c "$(wget -qO - https://gitlab.j551n.com/j551n/tailscale_scripts/-/raw/main/tailscale.sh)"
+```
+
+**Script features:**
+- Installs required packages (sudo, ethtool, curl)
+- Enables IP forwarding and IPv6 forwarding
+- Configures network optimizations
+- Installs and configures Tailscale
+- Sets up subnet routing
+
+</Tab>
+<Tab value="Manual Installation">
+
+For manual installation, follow these steps inside the container:
+
+```bash
+# Update package list
+apt update
+
+# Install required packages
+apt install -y sudo ethtool curl
+
+# Enable IP forwarding
+echo 'net.ipv4.ip_forward = 1' >> /etc/sysctl.conf
+echo 'net.ipv6.conf.all.forwarding = 1' >> /etc/sysctl.conf
+echo 'net.ipv4.conf.all.accept_source_route = 1' >> /etc/sysctl.conf
+echo 'net.ipv6.conf.all.accept_source_route = 1' >> /etc/sysctl.conf
+sysctl -p
+
+# Install Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+
+# Start Tailscale daemon
+systemctl start tailscaled
+systemctl enable tailscaled
+```
+
+</Tab>
+</Tabs>
+
+## Script Configuration Options
+
+### Basic Tailscale Setup
+
+<Tabs items={['Single Subnet', 'Multiple Subnets', 'Exit Node']}>
+<Tab value="Single Subnet">
+
+Configure Tailscale with a single subnet route:
+
+```bash
+# Replace with your authentication key and subnet
+tailscale up --auth-key="tskey-auth-..." \
+  --accept-routes \
+  --advertise-routes="192.168.1.0/24"
+```
+
+**Parameters:**
+- `--auth-key`: Your Tailscale authentication key
+- `--accept-routes`: Accept routes from other nodes
+- `--advertise-routes`: Advertise local subnet to Tailscale network
+
+</Tab>
+<Tab value="Multiple Subnets">
+
+Configure multiple subnet routes:
+
+```bash
+# Multiple subnets separated by commas
+tailscale up --auth-key="tskey-auth-..." \
+  --accept-routes \
+  --advertise-routes="192.168.1.0/24,10.0.0.0/24"
+```
+
+**Use cases:**
+- Multiple VLANs in your network
+- Different network segments
+- Bridging separate networks
+
+</Tab>
+<Tab value="Exit Node">
+
+Configure as an exit node for internet traffic:
+
+```bash
+# Enable exit node functionality
+tailscale up --auth-key="tskey-auth-..." \
+  --accept-routes \
+  --advertise-routes="192.168.1.0/24" \
+  --advertise-exit-node
+```
+
+**Requirements for exit nodes:**
+- Reliable internet connection
+- Sufficient bandwidth
+- Proper firewall configuration
+
+</Tab>
+</Tabs>
+
+### Network Optimizations
+
+The script automatically applies these optimizations:
+
+<Files>
+  <File name="UDP GRO Forwarding">
+    - Enables UDP Generic Receive Offload forwarding
+    - Improves WireGuard performance
+    - Reduces CPU usage for packet processing
+  </File>
+  <File name="GRO List Optimization">
+    - Disables GRO list for better forwarding
+    - Optimizes packet processing path
+    - Improves latency for VPN traffic
+  </File>
+  <File name="IP Forwarding">
+    - Enables IPv4 and IPv6 forwarding
+    - Allows routing between networks
+    - Essential for subnet routing
+  </File>
+</Files>
+
+```bash
+# Network optimization commands (applied automatically)
+NETDEV=$(ip route show 0/0 | cut -f5 -d' ')
+ethtool -K $NETDEV rx-udp-gro-forwarding on rx-gro-list off
+
+# Make optimizations persistent
+printf '#!/bin/sh\n\nethtool -K %s rx-udp-gro-forwarding on rx-gro-list off\n' "$NETDEV" > /etc/networkd-dispatcher/routable.d/50-tailscale
+chmod 755 /etc/networkd-dispatcher/routable.d/50-tailscale
+```
+
+## Advanced Script Configuration
+
+### Authentication Keys
+
+<Callout type="tip">
+Use reusable authentication keys for automated deployments, or one-time keys for manual setups.
+</Callout>
+
+<Tabs items={['Reusable Keys', 'One-time Keys', 'Tagged Keys']}>
+<Tab value="Reusable Keys">
+
+Create reusable authentication keys in Tailscale admin console:
+
+1. Go to **Settings** → **Keys**
+2. **Generate auth key**
+3. Enable **Reusable**
+4. Set appropriate **Expiry**
+5. Configure **Tags** if needed
+
+```bash
+# Use reusable key for multiple containers
+tailscale up --auth-key="tskey-auth-reusable-..."
+```
+
+</Tab>
+<Tab value="One-time Keys">
+
+One-time keys are consumed after first use:
+
+```bash
+# One-time key (default behavior)
+tailscale up --auth-key="tskey-auth-onetime-..."
+```
+
+**Benefits:**
+- Enhanced security
+- Prevents key reuse
+- Automatic cleanup
+
+</Tab>
+<Tab value="Tagged Keys">
+
+Use tagged keys for organized device management:
+
+```bash
+# Create key with tags in admin console
+# Tags: tag:server, tag:container, tag:production
+
+tailscale up --auth-key="tskey-auth-tagged-..." \
+  --hostname="proxmox-container-web"
+```
+
+</Tab>
+</Tabs>
+
+### Batch Container Configuration
+
+For deploying Tailscale across multiple containers:
+
+<Files>
+  <File name="Batch Configuration">
+    - Script multiple container configurations
+    - Use consistent naming conventions
+    - Implement proper tagging strategy
+  </File>
+  <File name="Network Segmentation">
+    - Different subnets per container role
+    - Isolated development/production networks
+    - Proper routing table management
+  </File>
+</Files>
+
+```bash
+#!/bin/bash
+# Batch container configuration script
+
+CONTAINERS=(101 102 103 104)
+SUBNETS=("192.168.1.0/24" "192.168.2.0/24" "10.0.1.0/24" "10.0.2.0/24")
+
+for i in "${!CONTAINERS[@]}"; do
+    CTID="${CONTAINERS[$i]}"
+    SUBNET="${SUBNETS[$i]}"
+    
+    echo "Configuring container $CTID for subnet $SUBNET"
+    
+    # Configure container
+    cat >> /etc/pve/lxc/${CTID}.conf << EOF
+lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+EOF
+    
+    # Reboot container
+    pct reboot $CTID
+    
+    # Wait for container to start
+    sleep 30
+    
+    # Install Tailscale (would need to be done interactively or with expect)
+    echo "Container $CTID configured. Install Tailscale manually with subnet $SUBNET"
+done
+```
+
+## Monitoring and Troubleshooting
+
+### Status Monitoring
+
+<Tabs items={['Tailscale Status', 'Network Connectivity', 'Performance Monitoring']}>
+<Tab value="Tailscale Status">
+
+Monitor Tailscale connection status:
+
+```bash
+# Check Tailscale status
+tailscale status
+
+# Detailed status with IPs
+tailscale status --peers
+
+# Check if routes are being advertised
+tailscale status --self
+
+# View connection logs
+journalctl -u tailscaled -f
+```
+
+</Tab>
+<Tab value="Network Connectivity">
+
+Test network connectivity through Tailscale:
+
+```bash
+# Test connectivity to Tailscale peers
+ping 100.x.x.x
+
+# Test subnet routing
+ping 192.168.1.1  # Through Tailscale route
+
+# Trace route through Tailscale
+traceroute -n 192.168.1.1
+
+# Check routing table
+ip route show | grep tailscale
+```
+
+</Tab>
+<Tab value="Performance Monitoring">
+
+Monitor Tailscale performance:
+
+```bash
+# Monitor network interface statistics
+watch -n 1 'cat /proc/net/dev | grep tailscale'
+
+# Check WireGuard statistics
+wg show
+
+# Monitor CPU usage
+top -p $(pgrep tailscaled)
+
+# Network throughput testing
+iperf3 -c [tailscale-peer-ip]
+```
+
+</Tab>
+</Tabs>
+
+### Common Issues and Solutions
+
+<Callout type="warn">
+Common issues often relate to firewall configuration, routing conflicts, or authentication problems.
+</Callout>
+
+<Tabs items={['Connection Issues', 'Routing Problems', 'Performance Issues']}>
+<Tab value="Connection Issues">
+
+**Cannot connect to Tailscale:**
+
+```bash
+# Check if tailscaled is running
+systemctl status tailscaled
+
+# Restart Tailscale service
+systemctl restart tailscaled
+
+# Check authentication
+tailscale status
+
+# Re-authenticate if needed
+tailscale up --auth-key="new-key"
+```
+
+**TUN device issues:**
+```bash
+# Check if TUN device exists
+ls -la /dev/net/tun
+
+# Verify container configuration
+cat /etc/pve/lxc/[CONTAINER_ID].conf | grep tun
+
+# Check device permissions
+ls -la /dev/net/tun
+```
+
+</Tab>
+<Tab value="Routing Problems">
+
+**Subnet routes not working:**
+
+```bash
+# Check advertised routes
+tailscale status --self
+
+# Verify IP forwarding
+sysctl net.ipv4.ip_forward
+sysctl net.ipv6.conf.all.forwarding
+
+# Check routing table
+ip route show table all
+
+# Test local subnet connectivity
+ping -c 1 192.168.1.1
+```
+
+**Route conflicts:**
+```bash
+# Check for overlapping routes
+ip route show | grep -E "(192\.168|10\.0|172\.16)"
+
+# Remove conflicting routes
+ip route del 192.168.1.0/24 via [gateway]
+```
+
+</Tab>
+<Tab value="Performance Issues">
+
+**Slow VPN performance:**
+
+```bash
+# Check network optimizations
+ethtool -k $(ip route show 0/0 | cut -f5 -d' ') | grep gro
+
+# Re-apply optimizations
+NETDEV=$(ip route show 0/0 | cut -f5 -d' ')
+ethtool -K $NETDEV rx-udp-gro-forwarding on rx-gro-list off
+
+# Check for packet loss
+ping -c 100 [tailscale-peer] | grep loss
+
+# Monitor interface errors
+cat /proc/net/dev | grep tailscale
+```
+
+</Tab>
+</Tabs>
+
+## Security Considerations
+
+### Best Practices
+
+<Files>
+  <File name="Authentication">
+    - Use tagged authentication keys
+    - Implement key rotation policy
+    - Monitor device connections
+    - Use MFA for Tailscale account
+  </File>
+  <File name="Network Security">
+    - Implement Tailscale ACLs
+    - Use firewall rules
+    - Monitor traffic patterns
+    - Regular security audits
+  </File>
+  <File name="Container Security">
+    - Use unprivileged containers when possible
+    - Limit container capabilities
+    - Regular security updates
+    - Monitor container access
+  </File>
+</Files>
+
+### Access Control
+
+```bash
+# Implement strict Tailscale ACLs
+{
+  "acls": [
+    // Allow admin access to all devices
+    {
+      "action": "accept",
+      "src": ["tag:admin"],
+      "dst": ["*:*"]
+    },
+    // Restrict container access
+    {
+      "action": "accept",
+      "src": ["tag:container"],
+      "dst": ["tag:server:80,443"]
+    }
+  ]
+}
+```
+
+## Script Customization
+
+### Modifying the Scripts
+
+<Tabs items={['Hypervisor Script', 'Tailscale Script', 'Custom Automation']}>
+<Tab value="Hypervisor Script">
+
+**Customizing the hypervisor configuration script:**
+
+```bash
+#!/usr/bin/env bash
+# Custom hypervisor configuration
+
+# Add custom container selection logic
+select_container_by_name() {
+    local container_name="$1"
+    CTID=$(pct list | grep "$container_name" | awk '{print $1}')
+    
+    if [ -z "$CTID" ]; then
+        echo "Container '$container_name' not found"
+        exit 1
+    fi
+}
+
+# Add additional security configurations
+add_security_config() {
+    local ctid="$1"
+    cat >> /etc/pve/lxc/${ctid}.conf << EOF
+# Additional security for Tailscale
+lxc.cap.drop = sys_module
+lxc.cap.drop = mac_admin
+lxc.cap.drop = mac_override
+EOF
+}
+```
+
+</Tab>
+<Tab value="Tailscale Script">
+
+**Customizing the Tailscale installation script:**
+
+```bash
+#!/bin/bash
+# Custom Tailscale installation
+
+# Add custom network configuration
+configure_custom_network() {
+    # Custom firewall rules
+    ufw --force enable
+    ufw allow in on tailscale0
+    ufw allow out on tailscale0
+    
+    # Custom routing
+    echo "100 tailscale" >> /etc/iproute2/rt_tables
+    ip rule add from 100.64.0.0/10 table tailscale
+}
+
+# Add monitoring setup
+setup_monitoring() {
+    # Install monitoring tools
+    apt install -y prometheus-node-exporter
+    
+    # Configure Tailscale metrics
+    systemctl enable prometheus-node-exporter
+    systemctl start prometheus-node-exporter
+}
+```
+
+</Tab>
+<Tab value="Custom Automation">
+
+**Creating custom automation scripts:**
+
+```bash
+#!/bin/bash
+# tailscale-automation.sh - Custom deployment automation
+
+CONFIG_FILE="/etc/tailscale-deployment.conf"
+
+# Load configuration
+source "$CONFIG_FILE"
+
+# Automated deployment function
+deploy_tailscale_cluster() {
+    local containers=("$@")
+    
+    for container in "${containers[@]}"; do
+        echo "Deploying Tailscale to container: $container"
+        
+        # Configure container
+        configure_container "$container"
+        
+        # Install Tailscale
+        install_tailscale "$container"
+        
+        # Apply custom configuration
+        apply_custom_config "$container"
+    done
+}
+
+# Usage
+deploy_tailscale_cluster 101 102 103 104
+```
+
+</Tab>
+</Tabs>
+
+## Conclusion
+
+These Tailscale Proxmox scripts provide:
+
+- **Automated configuration** for Proxmox LXC containers
+- **Network optimization** for best performance
+- **Flexible routing** options for complex networks
+- **Security features** with proper access control
+- **Batch deployment** capabilities for multiple containers
+
+<Callout type="info">
+Regular monitoring and maintenance ensure optimal performance and security of your Tailscale mesh network deployed via these automation scripts.
+</Callout>

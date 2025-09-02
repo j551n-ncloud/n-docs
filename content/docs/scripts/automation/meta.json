@@ -2,6 +2,8 @@
   "title": "Automation",
   "description": "Deployment and automation scripts",
   "pages": [
-    "deployment-scripts"
+    "deployment-scripts",
+    "tailscale-proxmox",
+    "tmux-manager"
   ]
 }

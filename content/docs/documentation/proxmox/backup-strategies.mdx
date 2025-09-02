@@ -1,0 +1,552 @@
+---
+title: Backup Strategies
+description: Comprehensive backup and disaster recovery strategies for Proxmox VE
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Backup Strategies
+
+A robust backup strategy is essential for protecting your virtualized infrastructure. Proxmox VE offers multiple backup methods and tools to ensure data protection and business continuity.
+
+## Backup Methods Overview
+
+<Callout type="info">
+Choose backup methods based on your RTO (Recovery Time Objective) and RPO (Recovery Point Objective) requirements.
+</Callout>
+
+### Backup Types
+
+<Files>
+  <File name="Full Backup">
+    - Complete VM/CT data
+    - Longest backup time
+    - Fastest restore
+    - Highest storage usage
+  </File>
+  <File name="Incremental Backup">
+    - Only changed blocks
+    - Faster backup
+    - Requires full backup chain
+    - Efficient storage usage
+  </File>
+  <File name="Differential Backup">
+    - Changes since last full
+    - Moderate backup time
+    - Two-step restore process
+    - Balanced storage usage
+  </File>
+</Files>
+
+### Backup Modes
+
+- **Snapshot**: Live backup using VM snapshots (recommended)
+- **Suspend**: Suspend VM during backup (minimal downtime)
+- **Stop**: Stop VM for backup (maximum consistency)
+
+## Proxmox Backup Server (PBS)
+
+<Callout type="tip">
+PBS provides enterprise-grade features including deduplication, encryption, and incremental backups with verification.
+</Callout>
+
+### PBS Installation
+
+<Tabs items={['Dedicated Server', 'Container Installation']}>
+<Tab value="Dedicated Server">
+
+```bash
+# Download PBS ISO and install on dedicated hardware
+# Or install on existing Debian system:
+
+# Add Proxmox repository
+echo 'deb http://download.proxmox.com/debian/pbs bullseye pbs-no-subscription' > /etc/apt/sources.list.d/pbs.list
+
+# Add repository key
+wget https://enterprise.proxmox.com/debian/proxmox-release-bullseye.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg
+
+# Install PBS
+apt update && apt install proxmox-backup-server
+```
+
+</Tab>
+<Tab value="Container Installation">
+
+```bash
+# Create PBS container
+pct create 200 local:vztmpl/debian-11-standard_11.7-1_amd64.tar.zst \
+  --hostname pbs \
+  --memory 4096 \
+  --cores 4 \
+  --rootfs local-lvm:32 \
+  --mp0 /backup,mp=/backup \
+  --net0 name=eth0,bridge=vmbr0,ip=192.168.1.200/24,gw=192.168.1.1
+
+# Start and configure container
+pct start 200
+pct exec 200 -- bash
+
+# Install PBS in container
+apt update && apt install proxmox-backup-server
+```
+
+</Tab>
+</Tabs>
+
+### PBS Configuration
+
+```bash
+# Initialize datastore
+proxmox-backup-manager datastore create main /backup
+
+# Create backup user
+proxmox-backup-manager user create backup@pbs --email admin@example.com
+
+# Set password
+proxmox-backup-manager user update backup@pbs --password
+
+# Create API token
+proxmox-backup-manager user generate-token backup@pbs backup-token
+```
+
+### Add PBS to Proxmox VE
+
+<Tabs items={['Web Interface', 'Command Line']}>
+<Tab value="Web Interface">
+
+1. **Datacenter** → **Storage** → **Add** → **Proxmox Backup Server**
+2. Configure PBS settings:
+   - **ID**: `pbs-main`
+   - **Server**: PBS server IP/hostname
+   - **Username**: `backup@pbs`
+   - **Password/Token**: Authentication credentials
+   - **Datastore**: `main`
+   - **Fingerprint**: PBS certificate fingerprint
+
+</Tab>
+<Tab value="Command Line">
+
+```bash
+# Add PBS storage
+pvesm add pbs pbs-main \
+  --server 192.168.1.200 \
+  --username backup@pbs \
+  --password secret \
+  --datastore main \
+  --fingerprint aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd
+```
+
+</Tab>
+</Tabs>
+
+## Traditional Backup Methods
+
+### vzdump Backup Tool
+
+<Callout type="info">
+vzdump is the core backup utility in Proxmox VE, supporting various storage backends and compression methods.
+</Callout>
+
+```bash
+# Basic VM backup
+vzdump 100 --storage local-backup
+
+# Backup with compression
+vzdump 100 --storage nfs-backup --compress gzip
+
+# Backup all VMs
+vzdump --all --storage local-backup --mode snapshot
+
+# Backup specific VMs
+vzdump 100,101,102 --storage local-backup --exclude-path /tmp
+
+# Backup with custom settings
+vzdump 100 \
+  --storage local-backup \
+  --mode snapshot \
+  --compress lzo \
+  --mailto admin@example.com \
+  --exclude-path /var/log \
+  --exclude-path /tmp
+```
+
+### Backup Storage Configuration
+
+<Tabs items={['Local Storage', 'NFS Storage', 'CIFS Storage']}>
+<Tab value="Local Storage">
+
+```bash
+# Create backup directory
+mkdir -p /backup/proxmox
+
+# Add directory storage
+pvesm add dir local-backup --path /backup/proxmox --content backup,iso,vztmpl
+
+# Set retention policy
+pvesm set local-backup --prune-backups keep-last=7,keep-weekly=4,keep-monthly=3
+```
+
+</Tab>
+<Tab value="NFS Storage">
+
+```bash
+# Mount NFS share
+mount -t nfs 192.168.1.250:/backup /mnt/nfs-backup
+
+# Add to fstab for persistence
+echo '192.168.1.250:/backup /mnt/nfs-backup nfs defaults 0 0' >> /etc/fstab
+
+# Add NFS storage to Proxmox
+pvesm add nfs nfs-backup --server 192.168.1.250 --export /backup --content backup
+```
+
+</Tab>
+<Tab value="CIFS Storage">
+
+```bash
+# Install CIFS utilities
+apt install cifs-utils
+
+# Create credentials file
+echo 'username=backup' > /etc/cifs-credentials
+echo 'password=secret' >> /etc/cifs-credentials
+chmod 600 /etc/cifs-credentials
+
+# Add CIFS storage
+pvesm add cifs cifs-backup \
+  --server 192.168.1.251 \
+  --share backup \
+  --username backup \
+  --password secret \
+  --content backup
+```
+
+</Tab>
+</Tabs>
+
+## Automated Backup Scheduling
+
+### Backup Jobs
+
+<Tabs items={['Web Interface', 'Cron Jobs', 'Systemd Timers']}>
+<Tab value="Web Interface">
+
+1. **Datacenter** → **Backup**
+2. **Add** backup job
+3. Configure job settings:
+   - **Node**: Target node(s)
+   - **Storage**: Backup destination
+   - **Schedule**: Cron expression
+   - **Selection Mode**: Include/exclude VMs
+   - **Retention**: Backup retention policy
+   - **Compression**: Backup compression
+   - **Mode**: Backup mode (snapshot/suspend/stop)
+
+</Tab>
+<Tab value="Cron Jobs">
+
+```bash
+# Edit root crontab
+crontab -e
+
+# Daily backup at 2 AM
+0 2 * * * vzdump --all --storage pbs-main --mode snapshot --quiet 1
+
+# Weekly full backup on Sunday
+0 1 * * 0 vzdump --all --storage nfs-backup --mode snapshot --compress gzip
+
+# Differential backup Monday-Saturday
+0 1 * * 1-6 vzdump --all --storage local-backup --mode snapshot --compress lzo
+```
+
+</Tab>
+<Tab value="Systemd Timers">
+
+Create backup service:
+```bash
+# /etc/systemd/system/proxmox-backup.service
+[Unit]
+Description=Proxmox VE Backup
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/vzdump --all --storage pbs-main --mode snapshot
+User=root
+```
+
+Create timer:
+```bash
+# /etc/systemd/system/proxmox-backup.timer
+[Unit]
+Description=Run Proxmox backup daily
+Requires=proxmox-backup.service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable timer:
+```bash
+systemctl enable --now proxmox-backup.timer
+```
+
+</Tab>
+</Tabs>
+
+### Backup Retention Policies
+
+<Files>
+  <File name="Simple Retention">
+    - keep-last: Keep last N backups
+    - keep-hourly: Keep hourly backups
+    - keep-daily: Keep daily backups
+  </File>
+  <File name="Advanced Retention">
+    - keep-weekly: Keep weekly backups
+    - keep-monthly: Keep monthly backups
+    - keep-yearly: Keep yearly backups
+  </File>
+</Files>
+
+```bash
+# Configure retention via storage
+pvesm set local-backup --prune-backups keep-last=3,keep-daily=7,keep-weekly=4,keep-monthly=6
+
+# Manual pruning
+vzdump --all --storage local-backup --prune-backups keep-last=5
+
+# Automatic pruning in backup job
+vzdump 100 --storage pbs-main --prune-backups keep-daily=7,keep-weekly=4
+```
+
+## Disaster Recovery Planning
+
+### Recovery Scenarios
+
+<Callout type="warn">
+Regular disaster recovery testing is essential to ensure backup reliability and recovery procedures.
+</Callout>
+
+<Tabs items={['Single VM Recovery', 'Node Recovery', 'Cluster Recovery']}>
+<Tab value="Single VM Recovery">
+
+**Scenario**: Single VM corruption or failure
+
+```bash
+# List available backups
+ls /var/lib/vz/dump/
+
+# Restore VM to new ID
+qmrestore /var/lib/vz/dump/vzdump-qemu-100-2024_02_09-02_00_15.vma.gz 101
+
+# Restore to original ID (VM must be removed first)
+qm destroy 100
+qmrestore /var/lib/vz/dump/vzdump-qemu-100-2024_02_09-02_00_15.vma.gz 100
+
+# Restore with different storage
+qmrestore backup.vma.gz 100 --storage local-lvm
+```
+
+</Tab>
+<Tab value="Node Recovery">
+
+**Scenario**: Complete node failure
+
+1. **Install fresh Proxmox VE** on replacement hardware
+2. **Restore network configuration**
+3. **Add storage configurations**
+4. **Restore VMs from backups**
+
+```bash
+# Restore multiple VMs
+for backup in /backup/*.vma.gz; do
+  vmid=$(echo $backup | grep -o '[0-9]\+')
+  qmrestore $backup $vmid
+done
+```
+
+</Tab>
+<Tab value="Cluster Recovery">
+
+**Scenario**: Complete cluster failure
+
+1. **Rebuild cluster infrastructure**
+2. **Restore shared storage**
+3. **Restore cluster configuration**
+4. **Restore all VMs and containers**
+
+```bash
+# Restore cluster configuration
+cp /backup/cluster/corosync.conf /etc/pve/
+cp /backup/cluster/datacenter.cfg /etc/pve/
+```
+
+</Tab>
+</Tabs>
+
+### Backup Verification
+
+```bash
+# Verify backup integrity
+qmrestore backup.vma.gz 999 --storage local-lvm --dryrun
+
+# Test restore process
+qmrestore backup.vma.gz 999 --storage local-lvm
+qm start 999
+# Test VM functionality
+qm destroy 999
+
+# PBS verification
+proxmox-backup-client verify backup-id
+```
+
+## Advanced Backup Strategies
+
+### 3-2-1 Backup Rule
+
+<Files>
+  <File name="3 Copies">
+    - Production data
+    - Local backup copy
+    - Remote backup copy
+  </File>
+  <File name="2 Different Media">
+    - Local storage (SSD/HDD)
+    - Remote storage (Cloud/Tape)
+  </File>
+  <File name="1 Offsite Copy">
+    - Geographic separation
+    - Protection from local disasters
+  </File>
+</Files>
+
+### Backup Encryption
+
+<Tabs items={['PBS Encryption', 'Manual Encryption']}>
+<Tab value="PBS Encryption">
+
+```bash
+# Create encryption key
+proxmox-backup-client key create backup-key.json
+
+# Backup with encryption
+proxmox-backup-client backup vm.pxar:/ --keyfile backup-key.json
+
+# Configure PBS datastore encryption
+proxmox-backup-manager datastore create encrypted-store /backup --encrypt true
+```
+
+</Tab>
+<Tab value="Manual Encryption">
+
+```bash
+# Encrypt backup with GPG
+vzdump 100 --stdout | gpg --cipher-algo AES256 --compress-algo 1 --symmetric --output backup-100.vma.gz.gpg
+
+# Decrypt and restore
+gpg --decrypt backup-100.vma.gz.gpg | qmrestore - 100
+```
+
+</Tab>
+</Tabs>
+
+### Cross-Site Replication
+
+```bash
+# PBS sync job (pull-based)
+proxmox-backup-manager sync-job create sync1 \
+  --remote remote-pbs \
+  --remote-store main \
+  --store local-store \
+  --schedule "0 2 * * *"
+
+# Manual sync
+proxmox-backup-manager pull remote-pbs:main/vm/100/2024-02-09T02:00:15Z local-store:
+```
+
+## Monitoring and Alerting
+
+### Backup Monitoring
+
+<Tabs items={['Log Monitoring', 'Email Notifications', 'External Monitoring']}>
+<Tab value="Log Monitoring">
+
+```bash
+# Check backup logs
+journalctl -u vzdump@*
+
+# Monitor backup job status
+grep -i error /var/log/vzdump.log
+
+# Real-time log monitoring
+tail -f /var/log/vzdump.log
+```
+
+</Tab>
+<Tab value="Email Notifications">
+
+```bash
+# Configure mail settings in datacenter.cfg
+echo 'email_from: backup@example.com' >> /etc/pve/datacenter.cfg
+echo 'http: backup.example.com:8006' >> /etc/pve/datacenter.cfg
+
+# Add email to backup job
+vzdump --all --storage pbs-main --mailto admin@example.com
+```
+
+</Tab>
+<Tab value="External Monitoring">
+
+```bash
+# Backup status script
+#!/bin/bash
+BACKUP_LOG="/var/log/vzdump.log"
+LAST_BACKUP=$(tail -n 100 $BACKUP_LOG | grep "INFO: Backup job finished successfully" | tail -n 1)
+
+if [ -z "$LAST_BACKUP" ]; then
+  echo "CRITICAL: No successful backup found"
+  exit 2
+fi
+
+# Send to monitoring system
+curl -X POST http://monitoring.example.com/api/backup-status \
+  -d "status=ok&timestamp=$(date +%s)"
+```
+
+</Tab>
+</Tabs>
+
+### Performance Monitoring
+
+```bash
+# Backup performance metrics
+iostat -x 1 60 > backup-performance.log
+
+# Network usage during backup
+iftop -i eth0 -t -s 60
+
+# Storage usage trends
+df -h | grep backup
+```
+
+## Best Practices
+
+- **Regular Testing**: Test restore procedures monthly
+- **Multiple Destinations**: Use different storage types and locations
+- **Retention Policies**: Balance storage costs with recovery needs
+- **Documentation**: Maintain recovery procedures and contact information
+- **Monitoring**: Implement automated backup monitoring and alerting
+- **Security**: Encrypt sensitive backups and secure backup storage
+- **Bandwidth Management**: Schedule backups during off-peak hours
+- **Incremental Strategy**: Use incremental backups for large datasets
+
+<Callout type="info">
+A well-planned backup strategy is your last line of defense against data loss and system failures.
+</Callout>

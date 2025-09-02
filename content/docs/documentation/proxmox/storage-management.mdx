@@ -1,0 +1,365 @@
+---
+title: Storage Management
+description: Configure and manage storage in Proxmox VE for optimal performance and reliability
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Storage Management
+
+Proxmox VE supports various storage types and configurations. Proper storage management is essential for performance, reliability, and data protection.
+
+## Storage Types Overview
+
+<Callout type="info">
+Choose storage types based on your performance requirements, budget, and use case scenarios.
+</Callout>
+
+### Local Storage Types
+
+- **Directory**: Simple file-based storage on local filesystem
+- **LVM**: Logical Volume Manager for block devices
+- **LVM-Thin**: Thin provisioning with LVM
+- **ZFS**: Advanced filesystem with built-in features
+
+### Network Storage Types
+
+- **NFS**: Network File System for shared storage
+- **CIFS/SMB**: Windows-compatible network shares
+- **iSCSI**: Block-level network storage
+- **Ceph**: Distributed storage cluster
+
+## Local Storage Configuration
+
+### Directory Storage
+
+<Tabs items={['Web Interface', 'Command Line']}>
+<Tab value="Web Interface">
+
+1. **Datacenter** → **Storage** → **Add** → **Directory**
+2. Configure settings:
+   - **ID**: `local-backup`
+   - **Directory**: `/mnt/backup`
+   - **Content**: Select appropriate types
+   - **Nodes**: Select target nodes
+
+</Tab>
+<Tab value="Command Line">
+
+Edit `/etc/pve/storage.cfg`:
+
+```bash
+dir: local-backup
+    path /mnt/backup
+    content backup,iso,vztmpl
+    nodes proxmox-node1
+    prune-backups keep-last=3
+```
+
+</Tab>
+</Tabs>
+
+### LVM Configuration
+
+Create LVM storage for high-performance VM disks:
+
+```bash
+# Create physical volume
+pvcreate /dev/sdb
+
+# Create volume group
+vgcreate vm-storage /dev/sdb
+
+# Add to Proxmox storage configuration
+pvesm add lvm vm-storage --vgname vm-storage --content images
+```
+
+### ZFS Configuration
+
+<Callout type="warn">
+ZFS requires adequate RAM (minimum 8GB recommended) and benefits from SSD caching for optimal performance.
+</Callout>
+
+<Tabs items={['Single Disk', 'Mirror', 'RAIDZ']}>
+<Tab value="Single Disk">
+
+```bash
+# Create ZFS pool
+zpool create -f vm-pool /dev/sdb
+
+# Add to Proxmox
+pvesm add zfspool vm-pool --pool vm-pool --content images,rootdir
+```
+
+</Tab>
+<Tab value="Mirror">
+
+```bash
+# Create mirrored ZFS pool
+zpool create -f vm-pool mirror /dev/sdb /dev/sdc
+
+# Configure compression and deduplication
+zfs set compression=lz4 vm-pool
+zfs set dedup=on vm-pool
+```
+
+</Tab>
+<Tab value="RAIDZ">
+
+```bash
+# Create RAIDZ pool (minimum 3 disks)
+zpool create -f vm-pool raidz /dev/sdb /dev/sdc /dev/sdd
+
+# Optimize for VM workloads
+zfs set recordsize=64K vm-pool
+zfs set primarycache=metadata vm-pool
+```
+
+</Tab>
+</Tabs>
+
+## Network Storage Configuration
+
+### NFS Storage
+
+<Tabs items={['Setup NFS Server', 'Add to Proxmox']}>
+<Tab value="Setup NFS Server">
+
+On NFS server:
+
+```bash
+# Install NFS server
+apt update && apt install nfs-kernel-server
+
+# Create export directory
+mkdir -p /srv/nfs/proxmox
+
+# Configure exports
+echo '/srv/nfs/proxmox 192.168.1.0/24(rw,sync,no_subtree_check,no_root_squash)' >> /etc/exports
+
+# Apply configuration
+exportfs -ra
+systemctl restart nfs-kernel-server
+```
+
+</Tab>
+<Tab value="Add to Proxmox">
+
+```bash
+# Add NFS storage to Proxmox
+pvesm add nfs nfs-storage --server 192.168.1.200 --export /srv/nfs/proxmox --content backup,iso,vztmpl,images
+```
+
+Or via web interface:
+1. **Datacenter** → **Storage** → **Add** → **NFS**
+2. Configure NFS server details
+
+</Tab>
+</Tabs>
+
+### Ceph Configuration
+
+<Callout type="info">
+Ceph provides distributed storage with high availability and scalability, ideal for cluster environments.
+</Callout>
+
+#### Install Ceph
+
+```bash
+# Install Ceph packages
+pveceph install --version quincy
+
+# Initialize Ceph cluster
+pveceph init --network 192.168.1.0/24
+
+# Create monitors (on each node)
+pveceph mon create
+
+# Create manager
+pveceph mgr create
+```
+
+#### Configure OSDs
+
+```bash
+# Create OSD on each storage disk
+pveceph osd create /dev/sdb
+
+# Check cluster status
+ceph status
+```
+
+#### Add Ceph Storage
+
+```bash
+# Create RBD pool
+pveceph pool create vm-pool --size 3 --min_size 2
+
+# Add to Proxmox storage
+pvesm add rbd ceph-storage --pool vm-pool --content images,rootdir
+```
+
+## Storage Performance Optimization
+
+### Disk Scheduling
+
+<Tabs items={['SSD Optimization', 'HDD Optimization']}>
+<Tab value="SSD Optimization">
+
+```bash
+# Set scheduler for SSDs
+echo noop > /sys/block/sda/queue/scheduler
+
+# Permanent configuration
+echo 'ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="noop"' > /etc/udev/rules.d/60-ssd-scheduler.rules
+```
+
+</Tab>
+<Tab value="HDD Optimization">
+
+```bash
+# Set scheduler for HDDs
+echo deadline > /sys/block/sdb/queue/scheduler
+
+# Permanent configuration
+echo 'ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="deadline"' > /etc/udev/rules.d/60-hdd-scheduler.rules
+```
+
+</Tab>
+</Tabs>
+
+### VM Disk Configuration
+
+Optimize VM disk performance:
+
+<Files>
+  <File name="High Performance">
+    - **Bus**: VirtIO SCSI
+    - **Cache**: Write-through or None
+    - **IO Thread**: Enabled
+    - **Discard**: Enabled (for SSDs)
+  </File>
+  <File name="Balanced">
+    - **Bus**: VirtIO SCSI
+    - **Cache**: Write-back
+    - **Backup**: Enabled
+  </File>
+  <File name="Safety First">
+    - **Bus**: SATA or IDE
+    - **Cache**: Write-through
+    - **Backup**: Enabled
+    - **Snapshot**: Enabled
+  </File>
+</Files>
+
+## Backup Strategies
+
+### Proxmox Backup Server (PBS)
+
+<Callout type="tip">
+PBS provides deduplication, encryption, and incremental backups for optimal storage efficiency.
+</Callout>
+
+```bash
+# Add PBS storage
+pvesm add pbs pbs-storage --server pbs.example.com --username backup@pbs --password secret --datastore main
+```
+
+### Traditional Backup Methods
+
+<Tabs items={['vzdump', 'Scheduled Backups']}>
+<Tab value="vzdump">
+
+```bash
+# Backup single VM
+vzdump 100 --storage local-backup --mode snapshot
+
+# Backup all VMs
+vzdump --all --storage nfs-backup --compress gzip
+```
+
+</Tab>
+<Tab value="Scheduled Backups">
+
+Create backup jobs via web interface:
+1. **Datacenter** → **Backup**
+2. **Add** backup job
+3. Configure schedule and retention
+
+</Tab>
+</Tabs>
+
+## Storage Monitoring
+
+### Check Storage Usage
+
+```bash
+# Overall storage usage
+df -h
+
+# ZFS pool status
+zpool status
+zfs list
+
+# LVM information
+vgs
+lvs
+pvs
+
+# Ceph cluster health
+ceph df
+ceph osd df
+```
+
+### Performance Monitoring
+
+```bash
+# I/O statistics
+iostat -x 1
+
+# Real-time disk usage
+iotop
+
+# Storage performance testing
+fio --name=test --ioengine=libaio --rw=randrw --bs=4k --numjobs=4 --size=1G --runtime=60 --group_reporting
+```
+
+## Troubleshooting Common Issues
+
+### Storage Full
+
+```bash
+# Clean old backups
+find /var/lib/vz/dump -name "*.vma*" -mtime +30 -delete
+
+# Remove unused disk images
+qm rescan --vmid 100
+
+# ZFS cleanup
+zfs destroy vm-pool/vm-100-disk-0@snapshot-name
+```
+
+### Performance Issues
+
+<Callout type="warn">
+Always test storage changes in a non-production environment first.
+</Callout>
+
+1. **Check disk health**: `smartctl -a /dev/sda`
+2. **Monitor I/O wait**: `top` (look for high %wa)
+3. **Verify network storage connectivity**: `ping nfs-server`
+4. **Check filesystem errors**: `dmesg | grep -i error`
+
+## Best Practices
+
+- **Separate storage types**: OS, VMs, backups on different storage
+- **Regular monitoring**: Set up alerts for storage usage
+- **Backup testing**: Regularly test backup restoration
+- **Performance baselines**: Establish and monitor performance metrics
+- **Capacity planning**: Monitor growth trends and plan accordingly
+
+<Callout type="info">
+Proper storage configuration significantly impacts overall Proxmox VE performance and reliability.
+</Callout>

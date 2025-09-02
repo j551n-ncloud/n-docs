@@ -15,10 +15,34 @@ export function baseOptions(): BaseLayoutProps {
           <svg
             width="24"
             height="24"
+            viewBox="0 0 32 32"
             xmlns="http://www.w3.org/2000/svg"
-            aria-label="Logo"
+            aria-label="N-Docs Logo"
           >
-            <circle cx={12} cy={12} r={12} fill="currentColor" />
+            {/* Background circle */}
+            <circle cx="16" cy="16" r="16" fill="#a8c8d8"/>
+            
+            {/* White inner circle */}
+            <circle cx="16" cy="16" r="12" fill="white"/>
+            
+            {/* Plant stem */}
+            <rect x="15.5" y="8" width="1" height="16" fill="#2d5a3d"/>
+            
+            {/* Large leaf (bottom left) */}
+            <ellipse cx="12" cy="20" rx="3" ry="2" fill="#4ade80" transform="rotate(-30 12 20)"/>
+            <ellipse cx="12" cy="20" rx="2.5" ry="1.5" fill="#22c55e" transform="rotate(-30 12 20)"/>
+            
+            {/* Medium leaf (middle left) */}
+            <ellipse cx="11" cy="16" rx="2.5" ry="1.5" fill="#4ade80" transform="rotate(-45 11 16)"/>
+            <ellipse cx="11" cy="16" rx="2" ry="1" fill="#22c55e" transform="rotate(-45 11 16)"/>
+            
+            {/* Small leaf (top right) */}
+            <ellipse cx="19" cy="12" rx="2" ry="1.2" fill="#4ade80" transform="rotate(30 19 12)"/>
+            <ellipse cx="19" cy="12" rx="1.5" ry="0.8" fill="#22c55e" transform="rotate(30 19 12)"/>
+            
+            {/* Top small leaf */}
+            <ellipse cx="17" cy="10" rx="1.5" ry="1" fill="#4ade80" transform="rotate(15 17 10)"/>
+            <ellipse cx="17" cy="10" rx="1" ry="0.6" fill="#22c55e" transform="rotate(15 17 10)"/>
           </svg>
           N-Docs
         </>

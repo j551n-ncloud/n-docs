@@ -1,0 +1,244 @@
+---
+title: Network Configuration
+description: Configure networking in Proxmox VE for optimal performance and security
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Network Configuration
+
+Proper network configuration is crucial for Proxmox VE performance and security. This guide covers essential networking concepts and configurations.
+
+## Network Interfaces Overview
+
+<Callout type="info">
+Proxmox VE uses Linux networking with additional virtualization-specific features for VM and container networking.
+</Callout>
+
+### Interface Types
+
+- **Physical Interfaces**: Direct hardware network adapters
+- **Bridges**: Virtual switches for VM/CT connectivity
+- **Bonds**: Link aggregation for redundancy and performance
+- **VLANs**: Network segmentation and isolation
+
+## Bridge Configuration
+
+Bridges are essential for VM and container networking:
+
+<Tabs items={['Web Interface', 'Command Line']}>
+<Tab value="Web Interface">
+
+1. Navigate to **Datacenter** → **Node** → **System** → **Network**
+2. Click **Create** → **Linux Bridge**
+3. Configure bridge settings:
+   - **Name**: `vmbr0` (convention)
+   - **IPv4/CIDR**: Your network configuration
+   - **Gateway**: Network gateway IP
+   - **Bridge ports**: Physical interface (e.g., `enp0s3`)
+
+</Tab>
+<Tab value="Command Line">
+
+Edit `/etc/network/interfaces`:
+
+```bash
+auto lo
+iface lo inet loopback
+
+iface enp0s3 inet manual
+
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports enp0s3
+    bridge-stp off
+    bridge-fd 0
+```
+
+Apply changes:
+```bash
+systemctl restart networking
+```
+
+</Tab>
+</Tabs>
+
+## VLAN Configuration
+
+<Callout type="warn">
+VLAN configuration requires VLAN-aware switches and proper planning to avoid network isolation issues.
+</Callout>
+
+### VLAN-Aware Bridge
+
+```bash
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports enp0s3
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+```
+
+### VLAN Interface
+
+```bash
+auto vmbr0.100
+iface vmbr0.100 inet static
+    address 192.168.100.1/24
+    vlan-raw-device vmbr0
+```
+
+## Bond Configuration
+
+Link aggregation for redundancy and increased bandwidth:
+
+<Tabs items={['Active-Backup', 'LACP (802.3ad)']}>
+<Tab value="Active-Backup">
+
+```bash
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s3 enp0s8
+    bond-miimon 100
+    bond-mode active-backup
+    bond-primary enp0s3
+
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports bond0
+    bridge-stp off
+    bridge-fd 0
+```
+
+</Tab>
+<Tab value="LACP (802.3ad)">
+
+```bash
+auto bond0
+iface bond0 inet manual
+    bond-slaves enp0s3 enp0s8
+    bond-miimon 100
+    bond-mode 802.3ad
+    bond-xmit-hash-policy layer2+3
+    bond-lacp-rate fast
+
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports bond0
+    bridge-stp off
+    bridge-fd 0
+```
+
+</Tab>
+</Tabs>
+
+## Firewall Configuration
+
+### Enable Datacenter Firewall
+
+1. **Datacenter** → **Firewall** → **Options**
+2. Enable **Firewall**
+3. Configure default policies:
+   - **Input Policy**: `DROP` or `ACCEPT`
+   - **Output Policy**: `ACCEPT`
+   - **Forward Policy**: `ACCEPT`
+
+### Security Groups
+
+Create reusable rule sets:
+
+<Files>
+  <File name="Web Server Rules">
+    - HTTP (80/tcp)
+    - HTTPS (443/tcp)
+    - SSH (22/tcp) - restricted IPs
+  </File>
+  <File name="Database Rules">
+    - MySQL (3306/tcp) - internal only
+    - PostgreSQL (5432/tcp) - internal only
+  </File>
+</Files>
+
+### Node-Level Rules
+
+```bash
+# Allow SSH from management network
+IN SSH(ACCEPT) -source 192.168.1.0/24
+
+# Allow Proxmox web interface
+IN ACCEPT -p tcp -dport 8006
+
+# Allow cluster communication
+IN ACCEPT -source 192.168.1.0/24 -p tcp -dport 5404:5405
+IN ACCEPT -source 192.168.1.0/24 -p udp -dport 5404:5405
+```
+
+## Advanced Networking
+
+### Software-Defined Networking (SDN)
+
+<Callout type="info">
+SDN provides advanced networking features like VXLANs, EVPN, and network controllers.
+</Callout>
+
+1. **Datacenter** → **SDN**
+2. Create **Zones**, **VNets**, and **Subnets**
+3. Apply configuration to cluster
+
+### Network Troubleshooting
+
+Common network diagnostic commands:
+
+```bash
+# Check interface status
+ip addr show
+
+# Test connectivity
+ping -c 4 gateway_ip
+
+# Check bridge configuration
+brctl show
+
+# Monitor network traffic
+tcpdump -i vmbr0
+
+# Check firewall logs
+journalctl -f | grep pve-firewall
+```
+
+## Performance Optimization
+
+### Network Tuning
+
+```bash
+# Increase network buffer sizes
+echo 'net.core.rmem_max = 134217728' >> /etc/sysctl.conf
+echo 'net.core.wmem_max = 134217728' >> /etc/sysctl.conf
+echo 'net.ipv4.tcp_rmem = 4096 87380 134217728' >> /etc/sysctl.conf
+echo 'net.ipv4.tcp_wmem = 4096 65536 134217728' >> /etc/sysctl.conf
+
+# Apply changes
+sysctl -p
+```
+
+### VM Network Performance
+
+- Use **VirtIO** network adapters for best performance
+- Enable **Multiqueue** for high-traffic VMs
+- Consider **SR-IOV** for maximum performance
+
+<Callout type="tip">
+Regular network monitoring helps identify bottlenecks and optimize performance for your specific workload.
+</Callout>

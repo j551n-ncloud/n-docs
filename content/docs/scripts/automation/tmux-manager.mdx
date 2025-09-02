@@ -1,0 +1,811 @@
+---
+title: Enhanced TMUX Manager Script
+description: Advanced tmux session management script with interactive menus, templates, and configuration options
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Enhanced TMUX Manager Script
+
+A comprehensive, interactive Bash script for managing tmux sessions with advanced features including session templates, detailed information display, bulk operations, and extensive configuration options.
+
+## Overview
+
+<Callout type="info">
+This enhanced tmux manager script transforms the standard tmux experience into an intuitive, menu-driven interface with powerful automation and management capabilities.
+</Callout>
+
+### Key Features
+
+<Files>
+  <File name="Session Management">
+    - Interactive session listing and selection
+    - Create, rename, delete, and attach operations
+    - Session templates for quick setup
+    - Bulk operations for efficiency
+  </File>
+  <File name="Enhanced Interface">
+    - Colorized output and menus
+    - FZF integration for fuzzy finding
+    - Detailed session information display
+    - Configurable sorting and display options
+  </File>
+  <File name="Advanced Features">
+    - Session duplication and cloning
+    - Window management integration
+    - Configuration persistence
+    - Help system and documentation
+  </File>
+</Files>
+
+### Why Use This Script?
+
+- **Simplified Workflow**: Menu-driven interface eliminates complex tmux commands
+- **Session Templates**: Pre-configured setups for development, monitoring, etc.
+- **Bulk Operations**: Manage multiple sessions efficiently
+- **Rich Information**: Detailed session statistics and status
+- **Customizable**: Extensive configuration options
+
+## Script Installation
+
+### Prerequisites
+
+<Tabs items={['Required', 'Optional', 'System Requirements']}>
+<Tab value="Required">
+
+**Essential dependencies:**
+```bash
+# Install tmux (if not already installed)
+# Ubuntu/Debian
+sudo apt update && sudo apt install tmux
+
+# CentOS/RHEL/Fedora
+sudo yum install tmux
+# or
+sudo dnf install tmux
+
+# macOS
+brew install tmux
+
+# Arch Linux
+sudo pacman -S tmux
+```
+
+</Tab>
+<Tab value="Optional">
+
+**Enhanced functionality:**
+```bash
+# Install fzf for fuzzy finding (highly recommended)
+# Ubuntu/Debian
+sudo apt install fzf
+
+# CentOS/RHEL/Fedora
+sudo yum install fzf
+# or
+sudo dnf install fzf
+
+# macOS
+brew install fzf
+
+# Arch Linux
+sudo pacman -S fzf
+
+# Manual installation
+git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+~/.fzf/install
+```
+
+</Tab>
+<Tab value="System Requirements">
+
+**Minimum requirements:**
+- **Bash** 4.0 or later
+- **tmux** 2.0 or later
+- **Linux/macOS/WSL** environment
+- **Terminal** with color support
+
+**Recommended:**
+- **fzf** for enhanced selection
+- **256-color terminal** for best experience
+- **UTF-8** locale support
+
+</Tab>
+</Tabs>
+
+### Download and Setup
+
+<Tabs items={['Quick Install', 'Manual Setup', 'Development Install']}>
+<Tab value="Quick Install">
+
+```bash
+# Download the script
+curl -o ~/tmux-manager.sh https://raw.githubusercontent.com/yourusername/tmux-manager/main/session.sh
+
+# Make executable
+chmod +x ~/tmux-manager.sh
+
+# Create symlink for easy access
+sudo ln -s ~/tmux-manager.sh /usr/local/bin/tmux-manager
+
+# Run the manager
+tmux-manager
+```
+
+</Tab>
+<Tab value="Manual Setup">
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/tmux-manager.git
+cd tmux-manager
+
+# Copy script to desired location
+cp session.sh ~/bin/tmux-manager.sh
+chmod +x ~/bin/tmux-manager.sh
+
+# Add to PATH (add to ~/.bashrc or ~/.zshrc)
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+</Tab>
+<Tab value="Development Install">
+
+```bash
+# Clone for development
+git clone https://github.com/yourusername/tmux-manager.git
+cd tmux-manager
+
+# Create development symlink
+ln -s $(pwd)/session.sh ~/bin/tmux-dev
+
+# Run development version
+~/bin/tmux-dev
+```
+
+</Tab>
+</Tabs>
+
+## Script Usage
+
+### Main Menu Interface
+
+<Callout type="tip">
+The main menu provides a comprehensive overview of your tmux environment with quick access to all management functions.
+</Callout>
+
+```bash
+# Launch tmux manager
+tmux-manager
+
+# Main menu options:
+# 1) 📋 List & Attach to Session
+# 2) ➕ Create New Session  
+# 3) 📝 Rename Session
+# 4) 🗑️  Delete Session
+# 5) 🔧 Session Management
+# 6) ⚙️  Configuration
+# 7) ❓ Help
+# 8) 🚪 Exit
+```
+
+### Session Operations
+
+<Tabs items={['List and Attach', 'Create Sessions', 'Manage Sessions']}>
+<Tab value="List and Attach">
+
+**Interactive Session Selection:**
+
+With FZF (recommended):
+- Fuzzy search through session names
+- Real-time filtering as you type
+- Preview session information
+- Escape to cancel selection
+
+Without FZF:
+- Numbered list of sessions
+- Detailed session information display
+- Status indicators (attached/detached)
+- Window and client counts
+
+**Session Information Display:**
+```
+● production (attached, 3 windows, 02-09 14:30)
+○ development (detached, 5 windows, 02-09 09:15)  
+○ monitoring (detached, 2 windows, 02-08 16:45)
+```
+
+</Tab>
+<Tab value="Create Sessions">
+
+**Session Creation Types:**
+
+1. **Basic Session**: Simple single-window session
+2. **Development Session**: Pre-configured with 3 windows:
+   - `editor`: For code editing
+   - `terminal`: For command execution
+   - `logs`: For monitoring logs
+3. **Custom Session**: User-defined configuration
+
+**Creation Process:**
+```bash
+# Example: Development session creation
+Session name: my-project
+Session type: Development (3 windows)
+Initial directory: /home/user/projects/my-project
+Result: Session created with editor, terminal, logs windows
+```
+
+</Tab>
+<Tab value="Manage Sessions">
+
+**Available Operations:**
+- **Rename**: Change session names
+- **Delete**: Remove sessions with confirmation
+- **Duplicate**: Clone existing sessions
+- **Kill Detached**: Bulk cleanup of unused sessions
+
+**Safety Features:**
+- Confirmation prompts for destructive operations
+- Session information display before deletion
+- Backup recommendations for important sessions
+
+</Tab>
+</Tabs>
+
+## Advanced Script Features
+
+### Session Templates
+
+<Callout type="info">
+Session templates provide pre-configured environments for specific workflows, saving time and ensuring consistency.
+</Callout>
+
+<Tabs items={['Development Template', 'Monitoring Template', 'Custom Templates']}>
+<Tab value="Development Template">
+
+**Pre-configured Development Environment:**
+
+```bash
+# Creates session with:
+Window 1: editor    - Code editing environment
+Window 2: terminal  - Command execution
+Window 3: logs      - Log monitoring
+
+# Automatic setup:
+- Sets working directory
+- Configures window names
+- Positions cursor in editor window
+- Ready for immediate use
+```
+
+**Customization Options:**
+- Initial directory selection
+- Custom window names
+- Startup commands per window
+- Layout configuration
+
+</Tab>
+<Tab value="Monitoring Template">
+
+**System Monitoring Setup:**
+
+```bash
+# Example monitoring session creation
+Window 1: htop      - System resource monitoring
+Window 2: logs      - System log monitoring  
+Window 3: network   - Network monitoring
+Window 4: services  - Service status monitoring
+
+# Commands automatically executed:
+htop                    # Resource monitor
+tail -f /var/log/syslog # Log monitoring
+watch ss -tuln          # Network connections
+watch systemctl status  # Service monitoring
+```
+
+</Tab>
+<Tab value="Custom Templates">
+
+**Creating Custom Templates:**
+
+```bash
+# Template configuration example
+create_custom_template() {
+    local session_name="$1"
+    local project_dir="$2"
+    
+    # Create base session
+    tmux new-session -d -s "$session_name" -c "$project_dir"
+    
+    # Setup windows
+    tmux rename-window -t "$session_name:0" "code"
+    tmux new-window -t "$session_name" -n "test" -c "$project_dir"
+    tmux new-window -t "$session_name" -n "server" -c "$project_dir"
+    
+    # Execute startup commands
+    tmux send-keys -t "$session_name:code" "vim ." Enter
+    tmux send-keys -t "$session_name:test" "npm test -- --watch" Enter
+    tmux send-keys -t "$session_name:server" "npm start" Enter
+    
+    # Select initial window
+    tmux select-window -t "$session_name:code"
+}
+```
+
+</Tab>
+</Tabs>
+
+### Session Management Features
+
+<Files>
+  <File name="Bulk Operations">
+    - Kill all detached sessions
+    - Mass session renaming
+    - Batch session creation
+    - Cleanup operations
+  </File>
+  <File name="Information Display">
+    - Detailed session statistics
+    - Window and pane counts
+    - Client connection info
+    - Creation timestamps
+  </File>
+  <File name="Advanced Operations">
+    - Session duplication
+    - Window management
+    - Layout preservation
+    - Configuration export
+  </File>
+</Files>
+
+### Configuration System
+
+<Tabs items={['Basic Settings', 'Display Options', 'Advanced Config']}>
+<Tab value="Basic Settings">
+
+**Core Configuration Options:**
+
+```bash
+# Configuration file: ~/.tmux-manager.conf
+DEFAULT_SHELL="/bin/bash"           # Default shell for new sessions
+SORT_SESSIONS="true"                # Sort sessions alphabetically
+SHOW_SESSION_INFO="true"            # Show detailed info in menu
+AUTO_ATTACH="false"                 # Auto-attach after creation
+CONFIRM_DELETE="true"               # Confirm before deletion
+```
+
+**Configuration Menu:**
+1. Toggle session sorting
+2. Toggle session info display
+3. Change default shell
+4. Save configuration
+5. Reset to defaults
+
+</Tab>
+<Tab value="Display Options">
+
+**Visual Customization:**
+
+```bash
+# Color configuration
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+
+# Display format options
+SHOW_TIMESTAMPS="true"              # Show creation times
+SHOW_WINDOW_COUNT="true"            # Show window counts
+SHOW_CLIENT_COUNT="true"            # Show client connections
+COMPACT_MODE="false"                # Compact display mode
+```
+
+</Tab>
+<Tab value="Advanced Config">
+
+**Advanced Configuration:**
+
+```bash
+# Performance settings
+MAX_SESSIONS_DISPLAY=50             # Limit session list size
+CACHE_SESSION_INFO="true"           # Cache session information
+REFRESH_INTERVAL=5                  # Auto-refresh interval
+
+# Integration settings
+FZF_OPTIONS="--height=40% --border"  # FZF display options
+EDITOR_COMMAND="vim"                # Default editor
+TERMINAL_COMMAND="bash"             # Default terminal
+
+# Backup settings
+AUTO_BACKUP="true"                  # Automatic session backup
+BACKUP_LOCATION="~/.tmux-backups"   # Backup directory
+BACKUP_RETENTION=30                 # Days to keep backups
+```
+
+</Tab>
+</Tabs>
+
+## Script Integration and Automation
+
+### Shell Integration
+
+<Tabs items={['Bash Integration', 'Zsh Integration', 'Fish Integration']}>
+<Tab value="Bash Integration">
+
+**Bash Configuration:**
+
+```bash
+# Add to ~/.bashrc
+alias tm='tmux-manager'
+alias tma='tmux attach'
+alias tms='tmux list-sessions'
+
+# Auto-completion function
+_tmux_manager_complete() {
+    local sessions=$(tmux list-sessions -F "#{session_name}" 2>/dev/null)
+    COMPREPLY=($(compgen -W "$sessions" -- "${COMP_WORDS[COMP_CWORD]}"))
+}
+complete -F _tmux_manager_complete tmux-manager
+
+# Auto-start tmux manager on login (optional)
+if [[ -z "$TMUX" ]] && [[ "$TERM_PROGRAM" != "vscode" ]]; then
+    tmux-manager
+fi
+```
+
+</Tab>
+<Tab value="Zsh Integration">
+
+**Zsh Configuration:**
+
+```bash
+# Add to ~/.zshrc
+alias tm='tmux-manager'
+alias tma='tmux attach'
+alias tms='tmux list-sessions'
+
+# Zsh completion
+_tmux_manager() {
+    local sessions=($(tmux list-sessions -F "#{session_name}" 2>/dev/null))
+    _describe 'sessions' sessions
+}
+compdef _tmux_manager tmux-manager
+
+# Oh-My-Zsh plugin integration
+plugins=(... tmux tmux-manager)
+```
+
+</Tab>
+<Tab value="Fish Integration">
+
+**Fish Shell Configuration:**
+
+```bash
+# Add to ~/.config/fish/config.fish
+alias tm='tmux-manager'
+alias tma='tmux attach'
+alias tms='tmux list-sessions'
+
+# Fish completion
+complete -c tmux-manager -f -a "(tmux list-sessions -F '#{session_name}' 2>/dev/null)"
+
+# Function for quick session switching
+function ts
+    set session_name $argv[1]
+    if test -z "$session_name"
+        tmux-manager
+    else
+        tmux attach -t $session_name
+    end
+end
+```
+
+</Tab>
+</Tabs>
+
+### Automation Scripts
+
+<Files>
+  <File name="Project Automation">
+    - Automatic session creation for projects
+    - Git hook integration
+    - IDE integration scripts
+  </File>
+  <File name="System Integration">
+    - Systemd service integration
+    - Cron job automation
+    - Login script integration
+  </File>
+  <File name="Backup Automation">
+    - Automatic session backup
+    - Configuration versioning
+    - Recovery procedures
+  </File>
+</Files>
+
+```bash
+# Project automation example
+#!/bin/bash
+# project-tmux.sh - Automatic project session setup
+
+PROJECT_NAME=$(basename $(pwd))
+SESSION_NAME="project-$PROJECT_NAME"
+
+# Check if session exists
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    echo "Attaching to existing session: $SESSION_NAME"
+    tmux attach -t "$SESSION_NAME"
+else
+    echo "Creating new project session: $SESSION_NAME"
+    
+    # Create session with project structure
+    tmux new-session -d -s "$SESSION_NAME" -c "$(pwd)"
+    tmux rename-window -t "$SESSION_NAME:0" "editor"
+    
+    # Add development windows
+    tmux new-window -t "$SESSION_NAME" -n "terminal" -c "$(pwd)"
+    tmux new-window -t "$SESSION_NAME" -n "server" -c "$(pwd)"
+    tmux new-window -t "$SESSION_NAME" -n "logs" -c "$(pwd)"
+    
+    # Setup commands
+    tmux send-keys -t "$SESSION_NAME:editor" "vim ." Enter
+    tmux send-keys -t "$SESSION_NAME:logs" "tail -f *.log" Enter
+    
+    # Attach to session
+    tmux select-window -t "$SESSION_NAME:editor"
+    tmux attach -t "$SESSION_NAME"
+fi
+```
+
+## Script Troubleshooting
+
+### Common Issues
+
+<Callout type="warn">
+Most issues stem from tmux configuration conflicts, permission problems, or missing dependencies.
+</Callout>
+
+<Tabs items={['Connection Issues', 'Display Problems', 'Performance Issues']}>
+<Tab value="Connection Issues">
+
+**Cannot connect to tmux server:**
+
+```bash
+# Check if tmux server is running
+tmux list-sessions
+
+# If no server, start one
+tmux new-session -d -s temp
+tmux kill-session -t temp
+
+# Check socket permissions
+ls -la /tmp/tmux-*
+
+# Reset tmux server
+tmux kill-server
+tmux new-session -d -s test
+```
+
+**Session attachment failures:**
+```bash
+# Check session exists
+tmux has-session -t session-name
+
+# Force attach
+tmux attach -t session-name -d
+
+# Check for nested tmux
+echo $TMUX
+```
+
+</Tab>
+<Tab value="Display Problems">
+
+**Color/formatting issues:**
+
+```bash
+# Check terminal capabilities
+echo $TERM
+tput colors
+
+# Set proper terminal
+export TERM=screen-256color
+
+# Test color support
+for i in {0..255}; do
+    printf "\x1b[38;5;${i}mcolor${i}\x1b[0m\n"
+done
+```
+
+**FZF integration problems:**
+```bash
+# Check FZF installation
+which fzf
+fzf --version
+
+# Test FZF functionality
+echo -e "option1\noption2\noption3" | fzf
+
+# Reinstall FZF if needed
+git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+~/.fzf/install
+```
+
+</Tab>
+<Tab value="Performance Issues">
+
+**Slow session listing:**
+
+```bash
+# Check session count
+tmux list-sessions | wc -l
+
+# Enable session caching
+CACHE_SESSION_INFO="true"
+
+# Limit displayed sessions
+MAX_SESSIONS_DISPLAY=20
+```
+
+**Memory usage issues:**
+```bash
+# Monitor tmux memory usage
+ps aux | grep tmux
+
+# Check session sizes
+tmux list-sessions -F "#{session_name}: #{session_windows} windows"
+
+# Clean up old sessions
+tmux-manager # Use bulk delete option
+```
+
+</Tab>
+</Tabs>
+
+### Debug Mode
+
+```bash
+# Enable debug mode
+export TMUX_MANAGER_DEBUG=1
+tmux-manager
+
+# Debug output includes:
+# - Function entry/exit
+# - Variable values
+# - Command execution
+# - Error details
+
+# Debug log location
+tail -f ~/.tmux-manager-debug.log
+```
+
+## Script Customization
+
+### Custom Menu Items
+
+```bash
+# Add custom menu options
+show_custom_menu() {
+    echo "9) 🔄 Sync Sessions"
+    echo "10) 📊 Session Statistics"
+    echo "11) 🔧 Advanced Tools"
+}
+
+# Custom function implementations
+sync_sessions() {
+    # Synchronize sessions across multiple servers
+    rsync -av ~/.tmux-sessions/ remote-server:~/.tmux-sessions/
+}
+
+session_statistics() {
+    # Display detailed session statistics
+    local total_sessions=$(tmux list-sessions | wc -l)
+    local total_windows=$(tmux list-windows -a | wc -l)
+    local total_panes=$(tmux list-panes -a | wc -l)
+    
+    echo "📊 Session Statistics:"
+    echo "   Sessions: $total_sessions"
+    echo "   Windows: $total_windows"
+    echo "   Panes: $total_panes"
+}
+```
+
+### Plugin System
+
+```bash
+# Plugin architecture
+PLUGIN_DIR="$HOME/.tmux-manager/plugins"
+
+load_plugins() {
+    for plugin in "$PLUGIN_DIR"/*.sh; do
+        [ -f "$plugin" ] && source "$plugin"
+    done
+}
+
+# Example plugin: ~/.tmux-manager/plugins/git-integration.sh
+git_session_create() {
+    local repo_url="$1"
+    local session_name=$(basename "$repo_url" .git)
+    
+    git clone "$repo_url" "/tmp/$session_name"
+    tmux new-session -d -s "$session_name" -c "/tmp/$session_name"
+    tmux send-keys -t "$session_name" "vim ." Enter
+}
+```
+
+## Best Practices
+
+### Session Organization
+
+<Files>
+  <File name="Naming Conventions">
+    - Use descriptive session names
+    - Include project/purpose identifiers
+    - Consistent naming patterns
+    - Avoid special characters
+  </File>
+  <File name="Session Structure">
+    - Logical window organization
+    - Consistent window naming
+    - Appropriate pane layouts
+    - Clear purpose separation
+  </File>
+  <File name="Lifecycle Management">
+    - Regular cleanup of unused sessions
+    - Backup important configurations
+    - Document session purposes
+    - Monitor resource usage
+  </File>
+</Files>
+
+### Performance Optimization
+
+```bash
+# Optimize tmux configuration
+# ~/.tmux.conf
+set -g history-limit 10000          # Reasonable history
+set -g status-interval 5            # Update status every 5s
+set -g escape-time 0                # No escape delay
+set -g display-time 2000            # Display messages for 2s
+
+# Session manager optimization
+CACHE_SESSION_INFO="true"           # Cache session data
+MAX_SESSIONS_DISPLAY=30             # Limit display count
+REFRESH_INTERVAL=10                 # Slower refresh rate
+```
+
+### Security Considerations
+
+```bash
+# Secure session management
+# Restrict tmux socket permissions
+chmod 700 /tmp/tmux-$(id -u)
+
+# Use secure session names (no sensitive info)
+# Good: project-frontend, dev-api
+# Bad: client-secret-key, prod-password
+
+# Regular cleanup of old sessions
+# Automated cleanup script
+find /tmp/tmux-* -mtime +7 -delete
+```
+
+## Conclusion
+
+The Enhanced TMUX Manager Script provides:
+
+- **Intuitive Interface**: Menu-driven session management
+- **Powerful Features**: Templates, bulk operations, detailed information
+- **Customization**: Extensive configuration and plugin support
+- **Integration**: Shell integration and automation capabilities
+- **Reliability**: Robust error handling and recovery
+
+<Callout type="info">
+This script transforms tmux from a complex terminal multiplexer into an accessible, powerful session management platform suitable for developers, system administrators, and power users.
+</Callout>

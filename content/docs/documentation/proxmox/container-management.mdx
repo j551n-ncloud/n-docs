@@ -1,0 +1,601 @@
+---
+title: Container Management
+description: Comprehensive guide to LXC container management in Proxmox VE
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs'
+import { Files, File, Folder } from 'fumadocs-ui/components/files'
+
+# Container Management
+
+Proxmox VE uses LXC (Linux Containers) to provide lightweight virtualization with near-native performance. Containers share the host kernel while maintaining isolation.
+
+## Understanding LXC Containers
+
+<Callout type="info">
+LXC containers offer better performance than VMs but are limited to Linux-based operating systems.
+</Callout>
+
+### Container vs VM Comparison
+
+<Files>
+  <File name="LXC Containers">
+    - Shared kernel with host
+    - Lower resource overhead
+    - Faster startup times
+    - Linux OS only
+    - Process-level isolation
+  </File>
+  <File name="Virtual Machines">
+    - Full hardware virtualization
+    - Higher resource overhead
+    - Any operating system
+    - Hardware-level isolation
+    - Complete OS independence
+  </File>
+</Files>
+
+### Container Types
+
+- **Privileged**: Full root access, less secure
+- **Unprivileged**: User namespace mapping, more secure
+- **System**: Full OS environment
+- **Application**: Single application focus
+
+## Creating Containers
+
+### Container Creation Wizard
+
+<Tabs items={['Web Interface', 'Command Line']}>
+<Tab value="Web Interface">
+
+1. **Node** → **Create CT**
+2. **General Tab**:
+   - **CT ID**: Unique identifier (100-999999)
+   - **Hostname**: Container hostname
+   - **Resource Pool**: Optional organization
+   - **Password**: Root password
+   - **SSH Key**: Optional SSH public key
+
+3. **Template Tab**:
+   - **Storage**: Template storage location
+   - **Template**: Select OS template
+
+4. **Root Disk Tab**:
+   - **Storage**: Root filesystem storage
+   - **Disk Size**: Allocate space (GB)
+
+5. **CPU Tab**:
+   - **Cores**: Number of CPU cores
+   - **CPU Limit**: Optional CPU limitation
+   - **CPU Units**: Relative CPU weight
+
+6. **Memory Tab**:
+   - **Memory**: RAM allocation (MB)
+   - **Swap**: Swap space allocation
+
+7. **Network Tab**:
+   - **Bridge**: Network bridge (vmbr0)
+   - **IPv4**: Static IP or DHCP
+   - **IPv6**: IPv6 configuration
+
+8. **DNS Tab**:
+   - **DNS Domain**: Domain name
+   - **DNS Servers**: Name servers
+
+</Tab>
+<Tab value="Command Line">
+
+```bash
+# Download template (if needed)
+pveam update
+pveam available
+pveam download local ubuntu-22.04-standard_22.04-1_amd64.tar.zst
+
+# Create container
+pct create 100 local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst \
+  --hostname ubuntu-ct \
+  --memory 1024 \
+  --cores 2 \
+  --rootfs local-lvm:8 \
+  --net0 name=eth0,bridge=vmbr0,ip=192.168.1.100/24,gw=192.168.1.1 \
+  --nameserver 8.8.8.8 \
+  --password
+
+# Start container
+pct start 100
+```
+
+</Tab>
+</Tabs>
+
+### Container Templates
+
+<Callout type="tip">
+Proxmox provides pre-built templates for popular Linux distributions, or you can create custom templates.
+</Callout>
+
+**Available Templates**:
+- Ubuntu (LTS and current)
+- Debian (stable, testing)
+- CentOS/AlmaLinux/Rocky Linux
+- Alpine Linux
+- Fedora
+- OpenSUSE
+
+```bash
+# List available templates
+pveam available --section system
+
+# Download specific template
+pveam download local ubuntu-22.04-standard_22.04-1_amd64.tar.zst
+
+# List downloaded templates
+pveam list local
+```
+
+## Container Configuration
+
+### Resource Management
+
+<Tabs items={['CPU Configuration', 'Memory Configuration', 'Storage Configuration']}>
+<Tab value="CPU Configuration">
+
+```bash
+# Set CPU cores
+pct set 100 --cores 4
+
+# Set CPU limit (50% of host)
+pct set 100 --cpulimit 0.5
+
+# Set CPU units (relative weight)
+pct set 100 --cpuunits 1024
+
+# CPU affinity (bind to specific cores)
+pct set 100 --cpus 2 --affinity 0,1
+```
+
+**CPU Units Explanation**:
+- Default: 1024 units
+- Higher values = more CPU priority
+- Relative to other containers
+
+</Tab>
+<Tab value="Memory Configuration">
+
+```bash
+# Set memory limit
+pct set 100 --memory 2048
+
+# Set swap space
+pct set 100 --swap 512
+
+# Memory shares (priority)
+pct set 100 --shares 1000
+```
+
+**Memory Management**:
+- No memory ballooning (unlike VMs)
+- Hard limits enforced by kernel
+- OOM killer activates when exceeded
+
+</Tab>
+<Tab value="Storage Configuration">
+
+```bash
+# Resize root filesystem
+pct resize 100 rootfs +5G
+
+# Add mount point
+pct set 100 --mp0 /host/path,mp=/container/path
+
+# Add additional storage
+pct set 100 --mp1 local-lvm:50,mp=/data
+```
+
+**Storage Types**:
+- **rootfs**: Root filesystem
+- **mp0-mp9**: Additional mount points
+- **unused**: Unused disk images
+
+</Tab>
+</Tabs>
+
+### Network Configuration
+
+<Files>
+  <File name="Bridge Network">
+    - **Bridge**: vmbr0 (default)
+    - **IP**: Static or DHCP
+    - **VLAN**: Optional VLAN tagging
+    - **Rate**: Bandwidth limiting
+  </File>
+  <File name="Advanced Options">
+    - **Firewall**: Container-level firewall
+    - **Link Down**: Start with network disabled
+    - **MTU**: Custom MTU size
+  </File>
+</Files>
+
+```bash
+# Configure static IP
+pct set 100 --net0 name=eth0,bridge=vmbr0,ip=192.168.1.100/24,gw=192.168.1.1
+
+# Configure DHCP
+pct set 100 --net0 name=eth0,bridge=vmbr0,ip=dhcp
+
+# Add VLAN tag
+pct set 100 --net0 name=eth0,bridge=vmbr0,tag=100,ip=192.168.100.10/24
+
+# Set bandwidth limit (10 Mbps)
+pct set 100 --net0 name=eth0,bridge=vmbr0,rate=10,ip=dhcp
+```
+
+### Security Configuration
+
+<Callout type="warn">
+Unprivileged containers provide better security isolation but may have compatibility limitations with some applications.
+</Callout>
+
+**Unprivileged Containers**:
+```bash
+# Create unprivileged container
+pct create 100 local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst \
+  --unprivileged 1 \
+  --hostname ubuntu-unpriv \
+  --memory 1024
+
+# Configure user namespace mapping
+echo 'root:100000:65536' >> /etc/subuid
+echo 'root:100000:65536' >> /etc/subgid
+```
+
+**AppArmor Integration**:
+```bash
+# Enable AppArmor profile
+pct set 100 --protection 1
+
+# Custom AppArmor profile
+pct set 100 --lxc.apparmor.profile=lxc-container-default-cgns
+```
+
+## Container Operations
+
+### Basic Operations
+
+<Tabs items={['Power Management', 'Console Access', 'File Operations']}>
+<Tab value="Power Management">
+
+```bash
+# Start container
+pct start 100
+
+# Stop container (graceful)
+pct stop 100
+
+# Shutdown container
+pct shutdown 100
+
+# Reboot container
+pct reboot 100
+
+# Suspend container
+pct suspend 100
+
+# Resume container
+pct resume 100
+```
+
+</Tab>
+<Tab value="Console Access">
+
+```bash
+# Enter container console
+pct console 100
+
+# Execute command in container
+pct exec 100 -- /bin/bash
+
+# Execute command as specific user
+pct exec 100 --user www-data -- whoami
+
+# Run interactive shell
+pct enter 100
+```
+
+</Tab>
+<Tab value="File Operations">
+
+```bash
+# Copy file to container
+pct push 100 /host/file.txt /container/path/file.txt
+
+# Copy file from container
+pct pull 100 /container/path/file.txt /host/file.txt
+
+# Mount container filesystem
+pct mount 100
+# Files accessible at /var/lib/lxc/100/rootfs/
+
+# Unmount container filesystem
+pct unmount 100
+```
+
+</Tab>
+</Tabs>
+
+### Snapshot Management
+
+```bash
+# Create snapshot
+pct snapshot 100 pre-update --description "Before package update"
+
+# List snapshots
+pct listsnapshot 100
+
+# Rollback to snapshot
+pct rollback 100 pre-update
+
+# Delete snapshot
+pct delsnapshot 100 pre-update
+```
+
+### Migration and Cloning
+
+<Tabs items={['Migration', 'Cloning', 'Templates']}>
+<Tab value="Migration">
+
+```bash
+# Online migration (container running)
+pct migrate 100 proxmox-node2 --online
+
+# Offline migration
+pct migrate 100 proxmox-node2
+
+# Migration with restart
+pct migrate 100 proxmox-node2 --restart
+```
+
+</Tab>
+<Tab value="Cloning">
+
+```bash
+# Full clone
+pct clone 100 101 --hostname new-container
+
+# Linked clone (faster, shared storage)
+pct clone 100 101 --hostname new-container --snapname current
+
+# Clone to different storage
+pct clone 100 101 --hostname new-container --storage local-lvm
+```
+
+</Tab>
+<Tab value="Templates">
+
+```bash
+# Convert container to template
+pct template 100
+
+# Clone from template
+pct clone 100 101 --hostname from-template
+
+# Restore template functionality
+pct set 100 --template 0
+```
+
+</Tab>
+</Tabs>
+
+## Advanced Container Features
+
+### Bind Mounts and Mount Points
+
+<Callout type="info">
+Bind mounts allow containers to access host directories directly, useful for shared data and development environments.
+</Callout>
+
+```bash
+# Add bind mount
+pct set 100 --mp0 /host/shared,mp=/container/shared
+
+# Read-only bind mount
+pct set 100 --mp0 /host/data,mp=/container/data,ro=1
+
+# Bind mount with backup exclusion
+pct set 100 --mp0 /host/temp,mp=/container/temp,backup=0
+
+# Device passthrough
+pct set 100 --dev0 /dev/ttyUSB0,mode=0666
+```
+
+### Nested Virtualization
+
+```bash
+# Enable nesting (for Docker, etc.)
+pct set 100 --features nesting=1
+
+# Enable keyctl (for systemd)
+pct set 100 --features keyctl=1
+
+# Enable FUSE
+pct set 100 --features fuse=1
+
+# Combine features
+pct set 100 --features nesting=1,keyctl=1,fuse=1
+```
+
+### Resource Limits and Cgroups
+
+```bash
+# Set I/O priority
+pct set 100 --ioprio 4
+
+# Startup order
+pct set 100 --startup order=1,up=30,down=60
+
+# Protection (prevent accidental deletion)
+pct set 100 --protection 1
+
+# Tags for organization
+pct set 100 --tags production,web-server
+```
+
+## Container Networking
+
+### Advanced Network Configuration
+
+<Files>
+  <File name="Multiple Networks">
+    Configure multiple network interfaces for different VLANs or purposes
+  </File>
+  <File name="Custom Routes">
+    Add static routes for complex network topologies
+  </File>
+  <File name="Firewall Rules">
+    Container-specific firewall configuration
+  </File>
+</Files>
+
+```bash
+# Multiple network interfaces
+pct set 100 --net0 name=eth0,bridge=vmbr0,ip=192.168.1.100/24,gw=192.168.1.1
+pct set 100 --net1 name=eth1,bridge=vmbr1,ip=10.0.0.100/24
+
+# Custom MAC address
+pct set 100 --net0 name=eth0,bridge=vmbr0,hwaddr=02:00:00:00:00:01,ip=dhcp
+
+# VLAN configuration
+pct set 100 --net0 name=eth0,bridge=vmbr0,tag=100,ip=192.168.100.10/24
+```
+
+### Container Firewall
+
+```bash
+# Enable container firewall
+pct set 100 --firewall 1
+
+# Configure via web interface:
+# Container → Firewall → Add Rule
+# Or edit /etc/pve/firewall/100.fw
+```
+
+## Performance Optimization
+
+### Resource Tuning
+
+<Tabs items={['CPU Optimization', 'Memory Optimization', 'I/O Optimization']}>
+<Tab value="CPU Optimization">
+
+```bash
+# CPU pinning for consistent performance
+pct set 100 --cpus 2 --affinity 2,3
+
+# Adjust CPU scheduler
+echo 'lxc.cgroup2.cpu.weight = 200' >> /etc/pve/lxc/100.conf
+
+# CPU quota (microseconds per 100ms)
+echo 'lxc.cgroup2.cpu.max = 50000 100000' >> /etc/pve/lxc/100.conf
+```
+
+</Tab>
+<Tab value="Memory Optimization">
+
+```bash
+# Memory swappiness (0-100)
+echo 'lxc.cgroup2.memory.swappiness = 10' >> /etc/pve/lxc/100.conf
+
+# Memory high watermark
+echo 'lxc.cgroup2.memory.high = 1G' >> /etc/pve/lxc/100.conf
+
+# OOM score adjustment
+echo 'lxc.proc.oom_score_adj = -500' >> /etc/pve/lxc/100.conf
+```
+
+</Tab>
+<Tab value="I/O Optimization">
+
+```bash
+# I/O weight (10-1000)
+echo 'lxc.cgroup2.io.weight = 500' >> /etc/pve/lxc/100.conf
+
+# I/O bandwidth limit
+echo 'lxc.cgroup2.io.max = 8:0 rbps=1048576 wbps=1048576' >> /etc/pve/lxc/100.conf
+
+# Block I/O priority
+pct set 100 --ioprio 4
+```
+
+</Tab>
+</Tabs>
+
+## Troubleshooting
+
+### Common Issues
+
+<Callout type="warn">
+Always backup container configurations before making significant changes.
+</Callout>
+
+**Container Won't Start**:
+```bash
+# Check container configuration
+pct config 100
+
+# Check system logs
+journalctl -u pve-container@100
+
+# Check container logs
+pct console 100
+dmesg
+```
+
+**Permission Issues**:
+```bash
+# Check user namespace mapping
+cat /etc/subuid
+cat /etc/subgid
+
+# Fix ownership issues
+pct exec 100 -- chown -R www-data:www-data /var/www
+```
+
+**Network Issues**:
+```bash
+# Check network configuration
+pct exec 100 -- ip addr show
+pct exec 100 -- ip route show
+
+# Test connectivity
+pct exec 100 -- ping -c 4 8.8.8.8
+```
+
+### Performance Monitoring
+
+```bash
+# Container resource usage
+pct status 100 --verbose
+
+# Real-time monitoring
+watch 'pct list'
+
+# Detailed resource usage
+cat /sys/fs/cgroup/lxc/100/memory.usage_in_bytes
+cat /sys/fs/cgroup/lxc/100/cpuacct.usage
+```
+
+## Best Practices
+
+- **Security**: Use unprivileged containers when possible
+- **Resource Planning**: Don't over-allocate resources
+- **Monitoring**: Implement resource monitoring and alerting
+- **Backups**: Regular backup schedules with retention policies
+- **Updates**: Keep container templates and packages updated
+- **Documentation**: Maintain container inventory and purposes
+- **Networking**: Plan network segmentation and security
+- **Storage**: Use appropriate storage types for workloads
+
+<Callout type="info">
+LXC containers provide an excellent balance of performance and isolation for Linux-based workloads in Proxmox VE.
+</Callout>

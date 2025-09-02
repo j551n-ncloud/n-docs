@@ -1,0 +1,719 @@
+---
+title: Post-Installation Setup
+description: Essential configuration steps after Proxmox VE installation
+icon: Settings
+---
+
+## Overview
+
+After successfully installing Proxmox VE, there are several important configuration steps to optimize your system for production use. This guide covers essential post-installation tasks including repository configuration, system updates, and basic security hardening.
+
+<Callout title="First Steps Priority">
+  Complete these steps in order for the best experience. Some configurations depend on others, so following the sequence is important for a stable system.
+</Callout>
+
+## Repository Configuration
+
+### Remove Enterprise Repository
+
+The default installation includes enterprise repositories that require a subscription. For community use, we need to disable these and add community repositories.
+
+<Accordions>
+
+<Accordion id="disable-enterprise" title="🚫 Disable Enterprise Repository">
+
+**Via Web Interface:**
+1. **Node → Updates → Repositories**
+2. **Select enterprise repository** (pve-enterprise)
+3. **Click "Disable"** or set to disabled
+4. **Apply changes**
+
+**Via Command Line:**
+```bash
+# Disable enterprise repository
+sed -i 's/^deb/#deb/' /etc/apt/sources.list.d/pve-enterprise.list
+
+# Verify it's disabled
+cat /etc/apt/sources.list.d/pve-enterprise.list
+```
+
+This prevents subscription warnings during updates.
+
+</Accordion>
+
+<Accordion id="add-community" title="🌍 Add Community Repository">
+
+**Via Web Interface:**
+1. **Node → Updates → Repositories**
+2. **Click "Add"**
+3. **Select "No-Subscription"** repository
+4. **Apply changes**
+
+**Via Command Line:**
+```bash
+# Add community repository
+echo "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve-no-subscription.list
+
+# Update package lists
+apt update
+```
+
+**Repository Configuration:**
+```bash
+# /etc/apt/sources.list.d/pve-no-subscription.list
+deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription
+```
+
+</Accordion>
+
+</Accordions>
+
+### Update System Packages
+
+<Accordions>
+
+<Accordion id="system-updates" title="📦 System Updates">
+
+**Via Web Interface:**
+1. **Node → Updates**
+2. **Click "Refresh"** to update package lists
+3. **Review available updates**
+4. **Click "Upgrade"** to install updates
+5. **Reboot if kernel updates** are installed
+
+**Via Command Line:**
+```bash
+# Update package lists
+apt update
+
+# Upgrade all packages
+apt full-upgrade -y
+
+# Clean up old packages
+apt autoremove -y
+apt autoclean
+
+# Check if reboot is required
+if [ -f /var/run/reboot-required ]; then
+    echo "Reboot required"
+    reboot
+fi
+```
+
+**Update Verification:**
+```bash
+# Check Proxmox version
+pveversion --verbose
+
+# Check kernel version
+uname -r
+
+# Verify system status
+systemctl status pve-cluster pve-daemon pvedaemon pveproxy
+```
+
+</Accordion>
+
+</Accordions>
+
+## Essential System Configuration
+
+### Disable Subscription Nag
+
+<Accordions>
+
+<Accordion id="remove-nag" title="🔕 Remove Subscription Notice">
+
+The subscription notice appears on every login. Here's how to disable it:
+
+**Method 1: Patch JavaScript (Temporary):**
+```bash
+# Backup original file
+cp /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js.bak
+
+# Remove subscription check
+sed -Ezi.bak "s/(Ext.Msg.show\(\{\s+title: gettext\('No valid sub)/void\(\{ \/\/\1/g" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+
+# Restart web service
+systemctl restart pveproxy
+```
+
+**Method 2: Using Community Script:**
+```bash
+# Download and run community script
+bash <(curl -s https://raw.githubusercontent.com/tteck/Proxmox/main/misc/post-pve-install.sh)
+```
+
+<Callout type="warn" title="Update Behavior">
+  The JavaScript patch will be overwritten during Proxmox updates. You'll need to reapply it after major updates.
+</Callout>
+
+</Accordion>
+
+</Accordions>
+
+### Configure Time Synchronization
+
+<Accordions>
+
+<Accordion id="ntp-config" title="🕐 NTP Configuration">
+
+**Via Web Interface:**
+1. **Node → System → Time**
+2. **Configure time zone** if not set during installation
+3. **Set NTP servers** (default is usually fine)
+4. **Enable NTP synchronization**
+
+**Via Command Line:**
+```bash
+# Install and configure chrony
+apt install chrony -y
+
+# Configure NTP servers
+cat > /etc/chrony/chrony.conf << EOF
+# Use public NTP servers
+pool 0.debian.pool.ntp.org iburst
+pool 1.debian.pool.ntp.org iburst
+pool 2.debian.pool.ntp.org iburst
+
+# Local stratum 10 server
+local stratum 10
+
+# Allow NTP client access from local network
+allow 192.168.0.0/16
+allow 10.0.0.0/8
+
+# Serve time even if not synchronized to a time source
+local stratum 10
+
+# Log files
+logdir /var/log/chrony
+EOF
+
+# Restart and enable chrony
+systemctl restart chrony
+systemctl enable chrony
+
+# Check synchronization status
+chrony sources -v
+timedatectl status
+```
+
+</Accordion>
+
+</Accordions>
+
+### Memory and CPU Optimization
+
+<Accordions>
+
+<Accordion id="performance-tuning" title="⚡ Performance Tuning">
+
+**Memory Configuration:**
+```bash
+# Configure swappiness for virtualization workload
+echo 'vm.swappiness=10' >> /etc/sysctl.conf
+
+# Optimize dirty page handling
+echo 'vm.dirty_background_ratio=5' >> /etc/sysctl.conf
+echo 'vm.dirty_ratio=10' >> /etc/sysctl.conf
+
+# Apply changes
+sysctl -p
+```
+
+**CPU Governor Configuration:**
+```bash
+# Install CPU frequency utilities
+apt install cpufrequtils -y
+
+# Set performance governor
+echo 'GOVERNOR="performance"' > /etc/default/cpufrequtils
+
+# Apply immediately
+cpufreq-set -g performance
+```
+
+**I/O Scheduler Optimization:**
+```bash
+# Set I/O scheduler for SSDs
+echo 'ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"' > /etc/udev/rules.d/60-ioschedulers.rules
+
+# Set I/O scheduler for HDDs
+echo 'ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"' >> /etc/udev/rules.d/60-ioschedulers.rules
+```
+
+</Accordion>
+
+</Accordions>
+
+## Network Configuration
+
+### Basic Network Setup
+
+<Accordions>
+
+<Accordion id="network-basic" title="🌐 Network Interface Configuration">
+
+**Via Web Interface:**
+1. **Node → System → Network**
+2. **Review current configuration**
+3. **Modify interfaces** as needed
+4. **Apply configuration** (requires reboot)
+
+**Common Network Configuration:**
+```bash
+# /etc/network/interfaces example
+auto lo
+iface lo inet loopback
+
+# Physical interface
+iface eno1 inet manual
+
+# Management bridge
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.100/24
+    gateway 192.168.1.1
+    bridge-ports eno1
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+
+# Additional isolated bridge
+auto vmbr1
+iface vmbr1 inet static
+    address 10.0.0.1/24
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
+```
+
+**Network Verification:**
+```bash
+# Check interface status
+ip addr show
+ip route show
+
+# Test connectivity
+ping -c 4 8.8.8.8
+ping -c 4 google.com
+
+# Check bridge configuration
+brctl show
+```
+
+</Accordion>
+
+</Accordions>
+
+## Storage Configuration
+
+### Local Storage Optimization
+
+<Accordions>
+
+<Accordion id="storage-setup" title="💾 Storage Configuration">
+
+**Via Web Interface:**
+1. **Datacenter → Storage**
+2. **Review existing storage**
+3. **Add additional storage** as needed
+4. **Configure content types** for each storage
+
+**ZFS Optimization (if using ZFS):**
+```bash
+# Optimize ZFS for virtualization
+echo 'options zfs zfs_arc_max=8589934592' > /etc/modprobe.d/zfs.conf  # 8GB ARC limit
+
+# Set ZFS recordsize for VM images
+zfs set recordsize=64K rpool/data
+
+# Enable compression
+zfs set compression=lz4 rpool/data
+
+# Optimize for SSDs
+zfs set primarycache=metadata rpool/data
+```
+
+**LVM Thin Provisioning:**
+```bash
+# Create thin pool for VM storage
+lvcreate -L 500G -T pve/data
+lvcreate -V 100G -T pve/data -n vm-100-disk-0
+```
+
+</Accordion>
+
+</Accordions>
+
+## Security Hardening
+
+### Basic Security Configuration
+
+<Accordions>
+
+<Accordion id="security-basic" title="🔒 Basic Security Setup">
+
+**SSH Configuration:**
+```bash
+# Backup SSH config
+cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+
+# Harden SSH
+cat >> /etc/ssh/sshd_config << EOF
+# Security hardening
+PermitRootLogin yes  # Keep for Proxmox management
+PasswordAuthentication yes  # Change to 'no' after key setup
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 2
+Protocol 2
+EOF
+
+# Restart SSH
+systemctl restart sshd
+```
+
+**Firewall Configuration:**
+```bash
+# Enable Proxmox firewall
+# Via web interface: Datacenter → Firewall → Options → Enable
+
+# Basic firewall rules via CLI
+cat > /etc/pve/firewall/cluster.fw << EOF
+[OPTIONS]
+enable: 1
+policy_in: DROP
+policy_out: ACCEPT
+
+[ALIASES]
+management_net 192.168.1.0/24
+
+[RULES]
+IN SSH(ACCEPT) -source +management_net
+IN HTTP(ACCEPT) -source +management_net
+IN HTTPS(ACCEPT) -source +management_net
+IN PING(ACCEPT)
+EOF
+```
+
+**Fail2Ban Installation:**
+```bash
+# Install fail2ban
+apt install fail2ban -y
+
+# Configure for Proxmox
+cat > /etc/fail2ban/jail.local << EOF
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 3
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+
+[proxmox]
+enabled = true
+port = https,http,8006
+filter = proxmox
+logpath = /var/log/daemon.log
+maxretry = 3
+bantime = 3600
+EOF
+
+# Create Proxmox filter
+cat > /etc/fail2ban/filter.d/proxmox.conf << EOF
+[Definition]
+failregex = pvedaemon\[.*authentication failure; rhost=<HOST> user=.* msg=.*
+ignoreregex =
+EOF
+
+# Start and enable fail2ban
+systemctl enable fail2ban
+systemctl start fail2ban
+```
+
+</Accordion>
+
+</Accordions>
+
+## Monitoring and Logging
+
+### System Monitoring Setup
+
+<Accordions>
+
+<Accordion id="monitoring-setup" title="📊 Monitoring Configuration">
+
+**Via Web Interface:**
+1. **Datacenter → Metric Server**
+2. **Add monitoring server** (InfluxDB, Graphite, etc.)
+3. **Configure metrics collection**
+
+**Basic Monitoring Tools:**
+```bash
+# Install monitoring utilities
+apt install htop iotop nethogs ncdu -y
+
+# Install and configure logrotate for Proxmox logs
+cat > /etc/logrotate.d/proxmox << EOF
+/var/log/pve-firewall.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 640 root adm
+}
+EOF
+```
+
+**System Health Script:**
+```bash
+#!/bin/bash
+# /usr/local/bin/pve-health-check.sh
+
+echo "=== Proxmox Health Check $(date) ==="
+
+# System load
+echo "System Load:"
+uptime
+
+# Memory usage
+echo -e "\nMemory Usage:"
+free -h
+
+# Disk usage
+echo -e "\nDisk Usage:"
+df -h | grep -E "(Filesystem|/dev/)"
+
+# ZFS status (if applicable)
+if command -v zpool &> /dev/null; then
+    echo -e "\nZFS Status:"
+    zpool status
+fi
+
+# VM/Container status
+echo -e "\nVM Status:"
+qm list
+
+echo -e "\nContainer Status:"
+pct list
+
+# Cluster status (if clustered)
+if [ -f /etc/pve/corosync.conf ]; then
+    echo -e "\nCluster Status:"
+    pvecm status
+fi
+```
+
+</Accordion>
+
+</Accordions>
+
+## Backup Configuration
+
+### Initial Backup Setup
+
+<Accordions>
+
+<Accordion id="backup-initial" title="💾 Backup Configuration">
+
+**Via Web Interface:**
+1. **Datacenter → Backup**
+2. **Add backup job**
+3. **Configure schedule and retention**
+4. **Test backup functionality**
+
+**Basic Backup Script:**
+```bash
+#!/bin/bash
+# /usr/local/bin/pve-backup.sh
+
+BACKUP_DIR="/backup"
+DATE=$(date +%Y%m%d-%H%M%S)
+LOG_FILE="/var/log/pve-backup.log"
+
+echo "[$DATE] Starting Proxmox configuration backup" >> $LOG_FILE
+
+# Backup Proxmox configuration
+mkdir -p $BACKUP_DIR/config
+tar -czf $BACKUP_DIR/config/pve-config-$DATE.tar.gz /etc/pve/ >> $LOG_FILE 2>&1
+
+# Backup network configuration
+cp /etc/network/interfaces $BACKUP_DIR/config/interfaces-$DATE
+
+# Cleanup old backups (keep 7 days)
+find $BACKUP_DIR/config/ -name "*.tar.gz" -mtime +7 -delete
+
+echo "[$DATE] Backup completed" >> $LOG_FILE
+```
+
+**Schedule Backup:**
+```bash
+# Add to crontab
+crontab -e
+
+# Daily backup at 2 AM
+0 2 * * * /usr/local/bin/pve-backup.sh
+```
+
+</Accordion>
+
+</Accordions>
+
+## Useful Tools Installation
+
+### Community Tools and Scripts
+
+<Accordions>
+
+<Accordion id="community-tools" title="🛠️ Essential Tools">
+
+**Proxmox Helper Scripts:**
+```bash
+# Install tteck's Proxmox Helper Scripts
+bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/misc/post-pve-install.sh)"
+```
+
+**Additional Useful Packages:**
+```bash
+# System administration tools
+apt install -y \
+    curl wget git vim nano \
+    htop iotop nethogs \
+    tree ncdu \
+    screen tmux \
+    rsync \
+    qemu-guest-agent
+
+# Network tools
+apt install -y \
+    net-tools \
+    bridge-utils \
+    vlan \
+    tcpdump \
+    nmap
+
+# Storage tools
+apt install -y \
+    smartmontools \
+    lvm2 \
+    zfsutils-linux
+```
+
+**Proxmox VE Helper Scripts Features:**
+- Automated container installations
+- System optimization
+- Repository management
+- Security enhancements
+- Monitoring setup
+
+</Accordion>
+
+</Accordions>
+
+## Verification and Testing
+
+### System Verification
+
+<Accordions>
+
+<Accordion id="verification" title="✅ System Verification">
+
+**Complete System Check:**
+```bash
+#!/bin/bash
+# System verification script
+
+echo "=== Proxmox VE Post-Installation Verification ==="
+
+# Check Proxmox version
+echo "Proxmox Version:"
+pveversion --verbose
+
+# Check services
+echo -e "\nService Status:"
+systemctl is-active pve-daemon pvedaemon pveproxy pve-cluster
+
+# Check network
+echo -e "\nNetwork Configuration:"
+ip addr show vmbr0
+
+# Check storage
+echo -e "\nStorage Status:"
+pvesm status
+
+# Check updates
+echo -e "\nUpdate Status:"
+apt list --upgradable 2>/dev/null | wc -l
+echo "packages can be upgraded"
+
+# Check firewall
+echo -e "\nFirewall Status:"
+pve-firewall status
+
+echo -e "\n=== Verification Complete ==="
+```
+
+**Performance Test:**
+```bash
+# CPU performance test
+pveperf /tmp
+
+# Storage performance test
+dd if=/dev/zero of=/tmp/test bs=1M count=1000 conv=fdatasync
+rm /tmp/test
+
+# Network connectivity test
+ping -c 4 8.8.8.8
+```
+
+</Accordion>
+
+</Accordions>
+
+## Post-Installation Checklist
+
+<Cards>
+
+<Card title="📦 Repository Setup" description="✅ Enterprise repo disabled, community repo added">
+  Essential for receiving updates without subscription warnings.
+</Card>
+
+<Card title="🔄 System Updates" description="✅ All packages updated, system rebooted if needed">
+  Ensures latest security patches and bug fixes are installed.
+</Card>
+
+<Card title="🔧 Basic Configuration" description="✅ Time sync, performance tuning, network setup">
+  Optimizes system for virtualization workloads and proper operation.
+</Card>
+
+<Card title="🔒 Security Hardening" description="✅ SSH secured, firewall enabled, fail2ban configured">
+  Protects system from unauthorized access and common attacks.
+</Card>
+
+</Cards>
+
+## Next Steps
+
+Your Proxmox VE system is now properly configured and ready for production use:
+
+<Cards>
+  <Card title="🌐 Network Configuration" href="/docs/documentation/proxmox/network-config" description="Advanced networking, VLANs, and bridges" />
+  <Card title="💾 Storage Management" href="/docs/documentation/proxmox/storage-management" description="Configure storage pools and shared storage" />
+  <Card title="🖥️ Create VMs" href="/docs/documentation/proxmox/vm-management" description="Virtual machine creation and management" />
+  <Card title="📦 Deploy Containers" href="/docs/documentation/proxmox/container-management" description="LXC container deployment and management" />
+</Cards>
+
+<Callout type="info" title="Documentation">
+  Keep a record of your configuration changes and customizations. This will be valuable for troubleshooting and when setting up additional nodes.
+</Callout>

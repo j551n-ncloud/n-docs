@@ -1,0 +1,489 @@
+---
+title: CalDAV Setup with Baikal
+description: Complete guide to setting up Baikal CalDAV server with Apple Calendar and Fantastical on macOS
+icon: Calendar
+---
+
+## Overview
+
+This guide explains how to connect **Baikal 0.9.3** (self-installed, non-Docker) to **Apple Calendar** and **Fantastical** on macOS. It assumes you have Baikal running on a subdomain of your server with a valid SSL certificate.
+
+<Callout title="Prerequisites">
+  - Baikal 0.9.3 installed and running
+  - Valid SSL certificate configured
+  - Subdomain properly configured (e.g., cal.yourdomain.com)
+  - User accounts created in Baikal admin interface
+</Callout>
+
+## Baikal Server Setup
+
+### Installation Verification
+
+Before configuring clients, ensure Baikal is properly installed:
+
+```bash
+# Check Baikal installation
+ls -la /var/www/baikal/
+
+# Verify web server configuration
+curl -I https://cal.yourdomain.com/dav.php
+
+# Check SSL certificate
+openssl s_client -connect cal.yourdomain.com:443 -servername cal.yourdomain.com
+```
+
+### User Management
+
+<Accordions>
+
+<Accordion id="create-users" title="👤 Creating Users">
+
+**Via Baikal Admin Interface:**
+1. Navigate to `https://cal.yourdomain.com/admin/`
+2. Login with admin credentials
+3. **Users and resources → Add user**
+4. Configure user settings:
+   - **Username**: Simple username (e.g., `john`)
+   - **Display name**: Full name for display
+   - **Email**: User's email address
+   - **Password**: Strong password for CalDAV access
+
+**User Configuration Tips:**
+- Use simple usernames without special characters
+- Avoid email addresses as usernames for better compatibility
+- Set strong passwords for security
+
+</Accordion>
+
+<Accordion id="calendar-setup" title="📅 Calendar Configuration">
+
+**Default Calendar Setup:**
+1. **Users and resources → Select user**
+2. **Calendars → Add calendar**
+3. Configure calendar:
+   - **Calendar name**: Descriptive name (e.g., `Personal`, `Work`)
+   - **Display name**: Name shown in clients
+   - **Description**: Optional description
+   - **Color**: Calendar color for organization
+
+**Multiple Calendars:**
+- Create separate calendars for different purposes
+- Use descriptive names for easy identification
+- Set different colors for visual organization
+
+</Accordion>
+
+</Accordions>
+
+## Apple Calendar Setup
+
+### Configuration Steps
+
+<Accordions>
+
+<Accordion id="apple-setup" title="🍎 Apple Calendar Configuration">
+
+**Step-by-Step Setup:**
+1. In the Mac **menu bar**, click **Calendar**
+2. Select **Add Account**
+3. In the account type dialog, open the dropdown and select **Advanced**
+4. Enter your credentials and server details:
+
+**Account Settings:**
+- **Account Type**: CalDAV
+- **Username**: `your-baikal-username` (not email)
+- **Password**: Your Baikal password
+- **Server Address**: `cal.yourdomain.com` *(no `https://` prefix)*
+- **Server Path**: `/dav.php/principals/USERNAME/`
+- **Port**: Leave on **Automatic**
+- **Use SSL**: ✅ **Enable** (for HTTPS)
+
+5. Click **OK** to save configuration
+
+**Important Notes:**
+- Replace `USERNAME` with your actual Baikal username
+- The server path must include `/principals/` for Apple Calendar
+- SSL should be enabled if you have a valid certificate
+
+</Accordion>
+
+<Accordion id="apple-sync" title="🔄 Sync Configuration">
+
+**Sync Settings:**
+1. **Calendar → Preferences → Accounts**
+2. Select your CalDAV account
+3. Configure refresh settings:
+   - **Refresh calendars**: Every 5 minutes (recommended)
+   - **Push**: Enable if supported by server
+   - **Enable calendar**: Ensure all calendars are checked
+
+**Sync Behavior:**
+- Changes aren't instant - respect the refresh interval
+- Manual sync: **Calendar → Refresh All**
+- Check network connectivity if sync fails
+
+</Accordion>
+
+</Accordions>
+
+## Fantastical Setup
+
+### Configuration for Fantastical
+
+<Accordions>
+
+<Accordion id="fantastical-setup" title="✨ Fantastical Configuration">
+
+Fantastical requires a different server path format:
+
+**Account Settings:**
+- **Account Type**: CalDAV
+- **Username**: Your Baikal username
+- **Password**: Your Baikal password
+- **Server**: `cal.yourdomain.com`
+- **Server Path**: `/dav.php/calendars/USERNAME/CALENDARNAME/`
+- **Use SSL**: ✅ Enable
+
+**Path Configuration:**
+- Replace `USERNAME` with your Baikal username
+- Replace `CALENDARNAME` with the exact calendar name from Baikal
+- Use the calendar name as configured in Baikal admin interface
+
+**Multiple Calendars:**
+For multiple calendars, you may need to add separate accounts or use the principal path:
+- **Alternative path**: `/dav.php/principals/USERNAME/`
+- Let Fantastical auto-discover calendars
+
+</Accordion>
+
+<Accordion id="fantastical-features" title="🎯 Advanced Features">
+
+**Fantastical-Specific Settings:**
+- **Calendar sets**: Organize calendars into groups
+- **Time zone support**: Configure for travel
+- **Natural language**: Use Fantastical's parsing features
+- **Notifications**: Configure alerts and reminders
+
+**Optimization Tips:**
+- Enable background refresh for real-time updates
+- Configure notification preferences
+- Set up calendar-specific colors and alerts
+
+</Accordion>
+
+</Accordions>
+
+## Troubleshooting
+
+<Accordions>
+
+<Accordion id="connection-issues" title="🔧 Connection Problems">
+
+**Common Connection Issues:**
+
+**Authentication Failures:**
+```bash
+# Test CalDAV connection
+curl -u username:password https://cal.yourdomain.com/dav.php/principals/username/
+
+# Check server response
+curl -I https://cal.yourdomain.com/dav.php
+```
+
+**SSL Certificate Issues:**
+- Verify certificate validity and chain
+- Check if certificate matches domain name
+- Test with browser first
+
+**Server Path Problems:**
+- Verify exact username spelling
+- Check calendar name in Baikal admin
+- Test different path formats
+
+</Accordion>
+
+<Accordion id="sync-issues" title="🔄 Synchronization Problems">
+
+**Sync Troubleshooting Steps:**
+
+1. **Delete and recreate account:**
+   - Remove account from Calendar/Fantastical
+   - Restart the application
+   - Add account again with correct settings
+
+2. **Check server logs:**
+```bash
+# Apache/Nginx access logs
+tail -f /var/log/apache2/access.log
+tail -f /var/log/nginx/access.log
+
+# Baikal specific logs
+tail -f /var/www/baikal/Specific/log/baikal.log
+```
+
+3. **Network connectivity:**
+```bash
+# Test DNS resolution
+nslookup cal.yourdomain.com
+
+# Test port connectivity
+telnet cal.yourdomain.com 443
+
+# Test HTTP response
+curl -v https://cal.yourdomain.com/dav.php
+```
+
+**Force Sync:**
+- Apple Calendar: **Calendar → Refresh All**
+- Fantastical: **File → Refresh All Calendars**
+- Restart applications if sync remains stuck
+
+</Accordion>
+
+<Accordion id="performance-issues" title="⚡ Performance Optimization">
+
+**Server-Side Optimization:**
+
+**Baikal Configuration:**
+```php
+# config/baikal.yaml
+system:
+  timezone: "Europe/London"
+  card_enabled: true
+  cal_enabled: true
+  dav_auth_type: "Digest"
+  admin_passwordhash: "..."
+```
+
+**Web Server Optimization:**
+```apache
+# Apache .htaccess optimization
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/calendar "access plus 1 hour"
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/calendar
+</IfModule>
+```
+
+**Client-Side Optimization:**
+- Reduce sync frequency for large calendars
+- Limit sync to recent events only
+- Use calendar-specific sync settings
+
+</Accordion>
+
+</Accordions>
+
+## Security Considerations
+
+### SSL/TLS Configuration
+
+<Accordions>
+
+<Accordion id="ssl-setup" title="🔒 SSL Certificate Setup">
+
+**Let's Encrypt Configuration:**
+```bash
+# Install certbot
+apt install certbot python3-certbot-apache
+
+# Obtain certificate
+certbot --apache -d cal.yourdomain.com
+
+# Auto-renewal
+crontab -e
+0 12 * * * /usr/bin/certbot renew --quiet
+```
+
+**Manual Certificate:**
+```bash
+# Generate CSR
+openssl req -new -newkey rsa:2048 -nodes \
+  -keyout cal.yourdomain.com.key \
+  -out cal.yourdomain.com.csr
+
+# Install certificate in web server
+# Configure Apache/Nginx with certificate files
+```
+
+</Accordion>
+
+<Accordion id="access-control" title="🛡️ Access Control">
+
+**IP Restriction (Optional):**
+```apache
+# Apache .htaccess
+<RequireAll>
+    Require ip 192.168.1.0/24
+    Require ip 10.0.0.0/8
+</RequireAll>
+```
+
+**Authentication Security:**
+- Use strong passwords for Baikal users
+- Enable two-factor authentication if available
+- Regular password rotation policy
+- Monitor access logs for suspicious activity
+
+**Firewall Configuration:**
+```bash
+# UFW firewall rules
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw deny 8080/tcp  # Block direct Baikal access
+```
+
+</Accordion>
+
+</Accordions>
+
+## Advanced Configuration
+
+### Multiple Device Setup
+
+<Accordions>
+
+<Accordion id="ios-setup" title="📱 iOS Configuration">
+
+**iPhone/iPad Setup:**
+1. **Settings → Calendar → Accounts → Add Account**
+2. **Other → Add CalDAV Account**
+3. Configure settings:
+   - **Server**: `cal.yourdomain.com`
+   - **Username**: Baikal username
+   - **Password**: Baikal password
+   - **Description**: Account name
+
+**iOS-Specific Notes:**
+- Use the same server paths as Apple Calendar
+- Enable calendar sync in account settings
+- Configure notification preferences
+
+</Accordion>
+
+<Accordion id="thunderbird-setup" title="🌩️ Thunderbird Configuration">
+
+**Thunderbird Lightning:**
+1. **Calendar → New Calendar → On the Network**
+2. **CalDAV format**
+3. **Location**: `https://cal.yourdomain.com/dav.php/calendars/USERNAME/CALENDARNAME/`
+4. Configure authentication and sync settings
+
+**Thunderbird Tips:**
+- Install Lightning add-on if not included
+- Use specific calendar URLs for better performance
+- Configure offline sync for reliability
+
+</Accordion>
+
+</Accordions>
+
+## Monitoring and Maintenance
+
+### Health Monitoring
+
+```bash
+# Monitor Baikal logs
+tail -f /var/www/baikal/Specific/log/baikal.log
+
+# Check web server status
+systemctl status apache2
+systemctl status nginx
+
+# Monitor disk usage
+df -h /var/www/baikal/
+
+# Database maintenance (if using SQLite)
+sqlite3 /var/www/baikal/Specific/db/db.sqlite "VACUUM;"
+```
+
+### Backup Strategy
+
+<Accordions>
+
+<Accordion id="backup-config" title="💾 Backup Configuration">
+
+**Essential Backup Items:**
+```bash
+# Baikal configuration
+tar -czf baikal-config-$(date +%Y%m%d).tar.gz \
+  /var/www/baikal/config/ \
+  /var/www/baikal/Specific/
+
+# Database backup
+cp /var/www/baikal/Specific/db/db.sqlite \
+  /backup/baikal-db-$(date +%Y%m%d).sqlite
+
+# Web server configuration
+cp /etc/apache2/sites-available/baikal.conf \
+  /backup/apache-baikal-$(date +%Y%m%d).conf
+```
+
+**Automated Backup Script:**
+```bash
+#!/bin/bash
+# baikal-backup.sh
+
+BACKUP_DIR="/backup/baikal"
+DATE=$(date +%Y%m%d-%H%M%S)
+
+mkdir -p $BACKUP_DIR
+
+# Backup Baikal files
+tar -czf $BACKUP_DIR/baikal-$DATE.tar.gz /var/www/baikal/
+
+# Backup database
+cp /var/www/baikal/Specific/db/db.sqlite $BACKUP_DIR/db-$DATE.sqlite
+
+# Cleanup old backups (keep 30 days)
+find $BACKUP_DIR -name "*.tar.gz" -mtime +30 -delete
+find $BACKUP_DIR -name "*.sqlite" -mtime +30 -delete
+```
+
+</Accordion>
+
+</Accordions>
+
+## Summary
+
+<Cards>
+
+<Card title="🍎 Apple Calendar" description="Use `/dav.php/principals/USERNAME/` as server path">
+  Works with automatic calendar discovery and standard CalDAV protocol.
+</Card>
+
+<Card title="✨ Fantastical" description="Use `/dav.php/calendars/USERNAME/CALENDARNAME/` for specific calendars">
+  Requires specific calendar paths or principal path for auto-discovery.
+</Card>
+
+<Card title="🔄 Sync Behavior" description="Changes aren't instant - configure appropriate refresh intervals">
+  Set realistic expectations for sync timing and configure accordingly.
+</Card>
+
+<Card title="🔒 Security" description="Use SSL certificates and strong authentication">
+  Implement proper security measures for production deployments.
+</Card>
+
+</Cards>
+
+## Quick Reference
+
+### Server Paths
+- **Apple Calendar**: `/dav.php/principals/USERNAME/`
+- **Fantastical**: `/dav.php/calendars/USERNAME/CALENDARNAME/`
+- **Generic CalDAV**: `/dav.php/principals/USERNAME/`
+
+### Common Issues
+- **Authentication**: Verify username/password in Baikal admin
+- **SSL**: Ensure valid certificate or disable SSL for testing
+- **Paths**: Use exact usernames and calendar names from Baikal
+- **Sync**: Allow time for sync intervals, force refresh if needed
+
+With these settings, Baikal 0.9.3 syncs reliably with both Apple Calendar and Fantastical, providing a robust self-hosted calendar solution.
+
+<Callout type="info" title="Need Help?">
+  If you encounter issues not covered here, check the Baikal documentation, web server logs, and consider testing with a simple CalDAV client first to isolate the problem.
+</Callout>

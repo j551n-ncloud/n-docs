@@ -460,3 +460,67 @@
   background-clip: text;
   animation: gradient-shift 4s ease infinite;
 }
+/* Sidebar Tab Highlighting */
+[data-sidebar-tab] {
+  transition: all 0.2s ease-in-out;
+}
+
+[data-sidebar-tab]:hover {
+  background-color: rgba(var(--tab-color-rgb), 0.1);
+}
+
+[data-sidebar-tab][data-active="true"] {
+  background-color: rgba(var(--tab-color-rgb), 0.15);
+  border-color: var(--tab-color);
+}
+
+[data-sidebar-tab][data-active="true"] [data-tab-icon] {
+  color: var(--tab-color);
+  background-color: rgba(var(--tab-color-rgb), 0.1);
+}
+
+/* Enhanced sidebar tab styling */
+.sidebar-tab-enhanced {
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-tab-enhanced::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--tab-color);
+  transform: scaleY(0);
+  transition: transform 0.2s ease-in-out;
+}
+
+.sidebar-tab-enhanced[data-active="true"]::before {
+  transform: scaleY(1);
+}
+
+/* Color definitions for sections */
+:root {
+  --documentation-color: rgb(59, 130, 246);
+  --documentation-color-rgb: 59, 130, 246;
+  --software-color: rgb(34, 197, 94);
+  --software-color-rgb: 34, 197, 94;
+  --scripts-color: rgb(168, 85, 247);
+  --scripts-color-rgb: 168, 85, 247;
+  --knowledge-color: rgb(249, 115, 22);
+  --knowledge-color-rgb: 249, 115, 22;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] {
+  --documentation-color: rgb(96, 165, 250);
+  --documentation-color-rgb: 96, 165, 250;
+  --software-color: rgb(74, 222, 128);
+  --software-color-rgb: 74, 222, 128;
+  --scripts-color: rgb(196, 181, 253);
+  --scripts-color-rgb: 196, 181, 253;
+  --knowledge-color: rgb(251, 146, 60);
+  --knowledge-color-rgb: 251, 146, 60;
+}
