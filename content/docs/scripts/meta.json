@@ -1,10 +1,14 @@
 {
-  "title": "Scripts",
-  "description": "Automation scripts and utilities for homelab management",
+  "title": "Automation",
+  "description": "Scripts and automation tools for infrastructure management",
+  "icon": "Terminal",
   "root": true,
   "pages": [
+    "---Overview---",
     "index",
+    "---Infrastructure---",
     "automation",
+    "---Media & Tools---",
     "media-tools"
   ]
 }

@@ -1,12 +1,16 @@
 {
-  "title": "Documentation",
+  "title": "Infrastructure",
   "description": "Homelab infrastructure documentation",
+  "icon": "Server",
   "root": true,
   "pages": [
+    "---Overview---",
     "index",
+    "---Virtualization---",
     "proxmox",
+    "vms-lxc",
+    "---Containerization---",
     "docker",
-    "kubernetes",
-    "vms-lxc"
+    "kubernetes"
   ]
 }

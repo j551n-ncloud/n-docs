@@ -1,9 +1,14 @@
 {
   "title": "N-Docs",
+  "description": "Comprehensive documentation for homelab and development",
+  "icon": "BookOpen",
   "pages": [
+    "---Getting Started---",
     "documentation",
+    "---Development---", 
     "software",
     "scripts",
+    "---Resources---",
     "knowledge"
   ]
 }

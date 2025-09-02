@@ -1,0 +1,199 @@
+---
+title: Welcome to N-Docs
+description: Your comprehensive guide to homelab infrastructure, development tools, and technical knowledge
+icon: Home
+---
+
+## Welcome to N-Docs
+
+Your one-stop documentation hub for homelab infrastructure, development workflows, and technical knowledge. Whether you're building your first homelab or scaling enterprise infrastructure, we've got you covered.
+
+<Callout title="Getting Started">
+  New here? Start with our [Infrastructure Overview](/docs/documentation) to understand the foundation, then explore specific technologies based on your needs.
+</Callout>
+
+## Documentation Sections
+
+<Cards>
+
+<Card icon={<Server className="text-blue-400" />} title="Infrastructure" href="/docs/documentation">
+  Complete homelab setup guides covering Proxmox, Docker, Kubernetes, and virtualization technologies.
+</Card>
+
+<Card icon={<Code className="text-green-400" />} title="Software" href="/docs/software">
+  Application guides, configuration tutorials, and software deployment best practices.
+</Card>
+
+<Card icon={<Terminal className="text-purple-400" />} title="Scripts" href="/docs/scripts">
+  Automation scripts, deployment tools, and infrastructure-as-code solutions.
+</Card>
+
+<Card icon={<BookOpen className="text-orange-400" />} title="Knowledge Base" href="/docs/knowledge">
+  Technical references, troubleshooting guides, and accumulated wisdom from real-world experience.
+</Card>
+
+</Cards>
+
+## Quick Navigation
+
+### 🚀 Popular Getting Started Guides
+
+<Cards>
+  <Card title="Proxmox Setup" href="/docs/documentation/proxmox" description="Build your virtualization foundation" />
+  <Card title="Docker Basics" href="/docs/documentation/docker" description="Master containerization" />
+  <Card title="Kubernetes Deployment" href="/docs/documentation/kubernetes" description="Scale with orchestration" />
+</Cards>
+
+### 🛠️ Essential Tools & Scripts
+
+<Cards>
+  <Card title="Deployment Automation" href="/docs/scripts" description="Streamline your deployments" />
+  <Card title="Monitoring Setup" href="/docs/software" description="Observe your infrastructure" />
+  <Card title="Backup Solutions" href="/docs/knowledge" description="Protect your data" />
+</Cards>
+
+## Learning Paths
+
+<Accordions>
+
+<Accordion id="beginner" title="🌱 Beginner Path: First Homelab">
+
+**Goal:** Set up a basic homelab with essential services
+
+**Timeline:** 4-6 weeks
+
+**Learning Path:**
+1. **Week 1-2:** [Proxmox Installation](/docs/documentation/proxmox) - Set up your hypervisor
+2. **Week 2-3:** [Basic VMs](/docs/documentation/vms-lxc) - Create your first virtual machines
+3. **Week 3-4:** [Docker Basics](/docs/documentation/docker) - Learn containerization
+4. **Week 4-6:** [Essential Services](/docs/software) - Deploy core applications
+
+**Skills You'll Gain:**
+- Virtualization fundamentals
+- Basic networking concepts
+- Container management
+- Service deployment
+
+</Accordion>
+
+<Accordion id="intermediate" title="⚡ Intermediate Path: Production-Ready Infrastructure">
+
+**Goal:** Build scalable, monitored infrastructure
+
+**Timeline:** 6-8 weeks
+
+**Prerequisites:** Basic homelab experience
+
+**Learning Path:**
+1. **Week 1-2:** [Advanced Proxmox](/docs/documentation/proxmox) - Clustering and high availability
+2. **Week 2-4:** [Kubernetes Setup](/docs/documentation/kubernetes) - Container orchestration
+3. **Week 4-6:** [Monitoring & Logging](/docs/software) - Observability stack
+4. **Week 6-8:** [Automation Scripts](/docs/scripts) - Infrastructure as code
+
+**Skills You'll Gain:**
+- High availability design
+- Container orchestration
+- Monitoring and alerting
+- Infrastructure automation
+
+</Accordion>
+
+<Accordion id="advanced" title="🔥 Advanced Path: Enterprise-Grade Setup">
+
+**Goal:** Implement enterprise patterns and practices
+
+**Timeline:** 8-12 weeks
+
+**Prerequisites:** Solid infrastructure experience
+
+**Learning Path:**
+1. **Week 1-3:** Multi-site clustering and disaster recovery
+2. **Week 3-6:** Advanced networking and security
+3. **Week 6-9:** CI/CD pipelines and GitOps
+4. **Week 9-12:** Performance optimization and scaling
+
+**Skills You'll Gain:**
+- Disaster recovery planning
+- Advanced security practices
+- DevOps methodologies
+- Performance engineering
+
+</Accordion>
+
+</Accordions>
+
+## Featured Content
+
+### 📊 Most Popular Guides
+
+Based on community feedback and usage:
+
+1. **[Docker Complete Guide](/docs/documentation/docker)** - Comprehensive containerization tutorial
+2. **[Proxmox Setup](/docs/documentation/proxmox)** - Virtualization platform installation
+3. **[Kubernetes Basics](/docs/documentation/kubernetes)** - Container orchestration fundamentals
+
+### 🆕 Recently Updated
+
+- **Docker Guide** - Added Docker Compose v2 syntax and best practices
+- **Proxmox Documentation** - Updated for Proxmox VE 8.0
+- **Automation Scripts** - New Makefile-based deployment system
+
+### 🔧 Essential Tools
+
+<Cards>
+  <Card title="Makefile Automation" description="Standardized build and deployment system">
+    
+```bash
+make deploy     # Deploy applications
+make monitor    # Check system status  
+make backup     # Create backups
+```
+
+  </Card>
+  <Card title="Docker Compose" description="Multi-container application orchestration">
+    
+```yaml
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+```
+
+  </Card>
+</Cards>
+
+## Community & Support
+
+### 🤝 Contributing
+
+Found an error or want to improve the documentation?
+
+- **Report Issues** - Use GitHub issues for bugs and suggestions
+- **Submit Improvements** - Pull requests are welcome
+- **Share Knowledge** - Contribute your own guides and scripts
+
+### 📚 Additional Resources
+
+<Cards>
+  <Card title="Official Documentation" description="Links to official project documentation" />
+  <Card title="Community Forums" description="Join discussions with other homelab enthusiasts" />
+  <Card title="Video Tutorials" description="Visual guides for complex setups" />
+</Cards>
+
+## What's Next?
+
+Choose your adventure based on your current experience level:
+
+<Cards>
+  <Card title="🏗️ Build Infrastructure" href="/docs/documentation" description="Start with Proxmox and virtualization" />
+  <Card title="🐳 Learn Containers" href="/docs/documentation/docker" description="Master Docker and containerization" />
+  <Card title="☸️ Scale with K8s" href="/docs/documentation/kubernetes" description="Deploy Kubernetes clusters" />
+  <Card title="🤖 Automate Everything" href="/docs/scripts" description="Streamline with automation" />
+</Cards>
+
+---
+
+<Callout type="info" title="Documentation Philosophy">
+  This documentation focuses on practical, real-world solutions. Every guide is tested in actual homelab environments and includes troubleshooting for common issues.
+</Callout>

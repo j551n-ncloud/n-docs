@@ -1,13 +1,19 @@
 {
   "title": "Software",
-  "description": "Software documentation and guides",
+  "description": "Application guides and software deployment",
+  "icon": "Code",
   "root": true,
   "pages": [
+    "---Overview---",
     "index",
+    "---Documentation---",
     "fumadocs",
+    "---Infrastructure---",
     "cloud-services",
     "networking",
+    "---Security---",
     "authentication",
+    "---Utilities---",
     "system-tools"
   ]
 }

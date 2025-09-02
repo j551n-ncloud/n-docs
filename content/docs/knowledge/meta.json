@@ -1,10 +1,14 @@
 {
-  "title": "Knowledge & Troubleshooting", 
-  "description": "Troubleshooting guides and knowledge base",
+  "title": "Knowledge Base",
+  "description": "Technical references and troubleshooting guides",
+  "icon": "BookOpen",
   "root": true,
   "pages": [
+    "---Overview---",
     "index",
+    "---Development---",
     "web-development",
+    "---Operations---",
     "system-administration"
   ]
 }
