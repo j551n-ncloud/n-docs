@@ -1,0 +1,430 @@
+---
+title: Kubernetes Installation Guide
+description: Complete guide for installing Kubernetes using various methods including kubeadm, Minikube, kind, and managed services
+---
+
+# Kubernetes Installation Guide
+
+Comprehensive guide for installing Kubernetes in different environments, from development to production.
+
+## Prerequisites
+
+### System Requirements
+- **CPU**: 2+ cores
+- **RAM**: 2GB+ (4GB+ recommended)
+- **Disk**: 20GB+ free space
+- **Network**: Full network connectivity between nodes
+- **Operating System**: Linux (Ubuntu 20.04+, CentOS 7+, RHEL 7+)
+
+### Required Tools
+- Docker or containerd runtime
+- curl or wget
+- sudo access
+
+## Installation Methods Overview
+
+<Cards>
+  <Card title="kubeadm" href="#method-1-kubeadm-production-ready">
+    Production-ready clusters with full control
+  </Card>
+  <Card title="Minikube" href="#method-2-minikube-development">
+    Local development environment
+  </Card>
+  <Card title="kind" href="#method-3-kind-testing">
+    Testing and CI/CD environments
+  </Card>
+  <Card title="Managed Services" href="#method-4-managed-services">
+    Cloud-managed Kubernetes services
+  </Card>
+</Cards>
+
+| Method | Best For | Complexity | Time |
+|--------|----------|------------|------|
+| kubeadm | Production clusters | Medium | 30-60 min |
+| Minikube | Local development | Low | 10-15 min |
+| kind | Testing/CI | Low | 5-10 min |
+| Managed | Production (cloud) | Low | 15-30 min |
+
+## Method 1: kubeadm (Production-Ready)
+
+### Step 1: Prepare All Nodes
+
+Run these commands on **all nodes** (master and workers):
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install required packages
+sudo apt install -y apt-transport-https ca-certificates curl gpg
+
+# Disable swap (required by Kubernetes)
+sudo swapoff -a
+sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+# Load required kernel modules
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
+
+sudo modprobe overlay
+sudo modprobe br_netfilter
+
+# Set required sysctl parameters
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-iptables  = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.ipv4.ip_forward                 = 1
+EOF
+
+sudo sysctl --system
+```
+
+### Step 2: Install Container Runtime (containerd)
+
+```bash
+# Install containerd
+sudo apt install -y containerd
+
+# Configure containerd
+sudo mkdir -p /etc/containerd
+containerd config default | sudo tee /etc/containerd/config.toml
+
+# Enable SystemdCgroup
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+
+# Restart containerd
+sudo systemctl restart containerd
+sudo systemctl enable containerd
+```
+
+### Step 3: Install Kubernetes Components
+
+```bash
+# Add Kubernetes APT repository
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+# Update package index
+sudo apt update
+
+# Install kubelet, kubeadm, and kubectl
+sudo apt install -y kubelet kubeadm kubectl
+
+# Hold packages to prevent automatic updates
+sudo apt-mark hold kubelet kubeadm kubectl
+
+# Enable kubelet
+sudo systemctl enable kubelet
+```
+
+### Step 4: Initialize Master Node
+
+Run **only on the master node**:
+
+```bash
+# Initialize cluster
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+
+# Set up kubectl for regular user
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+### Step 5: Install Pod Network (CNI)
+
+```bash
+# Install Flannel CNI
+kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+
+# Alternative: Install Calico CNI
+# kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/tigera-operator.yaml
+# kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml
+```
+
+### Step 6: Join Worker Nodes
+
+On each worker node, run the join command provided by kubeadm init:
+
+```bash
+# Example (replace with your actual token and hash)
+sudo kubeadm join <master-ip>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
+```
+
+If you lost the join command, generate a new one on the master:
+
+```bash
+kubeadm token create --print-join-command
+```
+
+## Method 2: Minikube (Development)
+
+### Installation
+
+```bash
+# Install Minikube
+curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube /usr/local/bin/
+
+# Install kubectl (if not already installed)
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# Start Minikube
+minikube start --driver=docker
+
+# Set kubectl context
+kubectl config use-context minikube
+```
+
+### Useful Minikube Commands
+
+```bash
+# Check status
+minikube status
+
+# Stop cluster
+minikube stop
+
+# Delete cluster
+minikube delete
+
+# Access Kubernetes dashboard
+minikube dashboard
+
+# SSH into node
+minikube ssh
+```
+
+## Method 3: kind (Testing)
+
+### Installation
+
+```bash
+# Install kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+
+# Create cluster
+kind create cluster --name my-cluster
+
+# Set kubectl context
+kubectl cluster-info --context kind-my-cluster
+```
+
+### Multi-node kind Cluster
+
+Create a config file `kind-config.yaml`:
+
+```yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+- role: worker
+```
+
+```bash
+# Create multi-node cluster
+kind create cluster --name multi-node --config kind-config.yaml
+```
+
+## Method 4: Managed Services
+
+<Tabs items={['AWS EKS', 'Google GKE', 'Azure AKS']}>
+
+<Tab value="AWS EKS">
+```bash
+# Install eksctl
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+
+# Create cluster
+eksctl create cluster --name my-cluster --region us-west-2 --nodegroup-name worker-nodes --node-type t3.medium --nodes 2
+```
+</Tab>
+
+<Tab value="Google GKE">
+```bash
+# Create cluster
+gcloud container clusters create my-cluster --zone us-central1-a --num-nodes 2
+
+# Get credentials
+gcloud container clusters get-credentials my-cluster --zone us-central1-a
+```
+</Tab>
+
+<Tab value="Azure AKS">
+```bash
+# Create resource group
+az group create --name myResourceGroup --location eastus
+
+# Create cluster
+az aks create --resource-group myResourceGroup --name myAKSCluster --node-count 2 --enable-addons monitoring --generate-ssh-keys
+
+# Get credentials
+az aks get-credentials --resource-group myResourceGroup --name myAKSCluster
+```
+</Tab>
+
+</Tabs>
+
+## Post-Installation Setup
+
+### Install Helm (Package Manager)
+
+```bash
+# Install Helm
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# Add popular repositories
+helm repo add stable https://charts.helm.sh/stable
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+```
+
+### Install Metrics Server
+
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+```
+
+### Install Ingress Controller
+
+```bash
+# NGINX Ingress Controller
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.1/deploy/static/provider/cloud/deploy.yaml
+
+# Or using Helm
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx
+```
+
+## Verification
+
+### Check Cluster Status
+
+```bash
+# Check nodes
+kubectl get nodes -o wide
+
+# Check system pods
+kubectl get pods -n kube-system
+
+# Check cluster info
+kubectl cluster-info
+
+# Check component status
+kubectl get componentstatuses
+```
+
+### Deploy Test Application
+
+```bash
+# Create test deployment
+kubectl create deployment nginx --image=nginx
+
+# Expose deployment
+kubectl expose deployment nginx --port=80 --type=NodePort
+
+# Check deployment
+kubectl get deployments
+kubectl get pods
+kubectl get services
+
+# Test access (for NodePort)
+kubectl get service nginx
+# Access via http://<node-ip>:<node-port>
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<Callout type="warn">
+**Pods stuck in Pending state**
+```bash
+kubectl describe pod <pod-name>
+# Check for resource constraints or node issues
+```
+</Callout>
+
+<Callout type="info">
+**Node not joining cluster**
+```bash
+# Check firewall rules (ports 6443, 2379-2380, 10250-10252)
+sudo ufw allow 6443
+
+# Check token validity
+kubeadm token list
+```
+</Callout>
+
+### CNI Network Issues
+
+```bash
+# Check CNI pods
+kubectl get pods -n kube-system | grep -E "(flannel|calico|weave)"
+
+# Restart CNI
+kubectl delete pods -n kube-system -l app=flannel
+```
+
+### kubelet Not Starting
+
+```bash
+sudo systemctl status kubelet
+sudo journalctl -u kubelet -f
+
+# Common fix: ensure swap is disabled
+sudo swapoff -a
+```
+
+### Useful Commands
+
+```bash
+# View logs
+kubectl logs <pod-name>
+kubectl logs -f deployment/<deployment-name>
+
+# Describe resources
+kubectl describe pod <pod-name>
+kubectl describe node <node-name>
+
+# Execute commands in pods
+kubectl exec -it <pod-name> -- bash
+
+# Port forwarding
+kubectl port-forward <pod-name> 8080:80
+
+# Get events
+kubectl get events --sort-by=.metadata.creationTimestamp
+```
+
+## Next Steps
+
+After successful installation:
+
+<Cards>
+  <Card title="Security" href="/docs/documentation/kubernetes/kubernetes-fundamentals#security">
+    Configure RBAC, network policies, and pod security standards
+  </Card>
+  <Card title="Monitoring" href="/docs/documentation/kubernetes/kubernetes-fundamentals#monitoring">
+    Install Prometheus and Grafana for cluster monitoring
+  </Card>
+  <Card title="AWX Deployment" href="/docs/documentation/kubernetes/awx-deployment">
+    Deploy AWX automation platform on your cluster
+  </Card>
+</Cards>
+
+## Additional Resources
+
+- [Official Kubernetes Documentation](https://kubernetes.io/docs/)
+- [Kubernetes the Hard Way](https://github.com/kelseyhightower/kubernetes-the-hard-way)
+- [kubectl Cheat Sheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
+- [Kubernetes Best Practices](https://kubernetes.io/docs/concepts/configuration/overview/)
