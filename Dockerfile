@@ -25,8 +25,6 @@ COPY . .
 # Set environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_DEV_MODE=false
-ENV NEXT_PUBLIC_DISABLE_DEVTOOLS=true
 
 # Build the application
 RUN npm run build

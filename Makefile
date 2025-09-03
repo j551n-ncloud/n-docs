@@ -46,7 +46,7 @@ build: clean install ## Build for production
 	@export NODE_ENV=production && \
 	export NEXT_TELEMETRY_DISABLED=1 && \
 	export NEXT_PUBLIC_DEV_MODE=false && \
-	export NEXT_PUBLIC_DISABLE_DEVTOOLS=true && \
+	export NEXT_PUBLIC_DISABLE_DEVTOOLS=false && \
 	export ESLINT_NO_DEV_ERRORS=true && \
 	npm run build
 	@echo "$(GREEN)[SUCCESS]$(NC) Production build completed!"
@@ -74,7 +74,7 @@ docker-run: docker-build ## Run Docker container
 		-e NODE_ENV=production \
 		-e NEXT_TELEMETRY_DISABLED=1 \
 		-e NEXT_PUBLIC_DEV_MODE=false \
-		-e NEXT_PUBLIC_DISABLE_DEVTOOLS=true \
+		-e NEXT_PUBLIC_DISABLE_DEVTOOLS=false \
 		$(IMAGE_NAME)
 	@sleep 3
 	@if docker ps --format 'table {{.Names}}' | grep -q '^$(CONTAINER_NAME)$$'; then \
