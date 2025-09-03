@@ -43,17 +43,8 @@ export function disableDevTools() {
       }
     });
 
-    // Disable drag and drop
-    document.addEventListener('dragstart', (e) => {
-      e.preventDefault();
-      return false;
-    });
-
-    // Disable text selection
-    document.addEventListener('selectstart', (e) => {
-      e.preventDefault();
-      return false;
-    });
+    // Allow text selection and drag/drop for better UX
+    // Text selection and drag/drop are now enabled for user convenience
 
     // Clear console periodically
     setInterval(() => {

@@ -66,23 +66,12 @@ export function DevToolsDisabler() {
       }
     };
 
-    // Disable text selection
-    const handleSelectStart = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
-
-    // Disable drag and drop
-    const handleDragStart = (e: DragEvent) => {
-      e.preventDefault();
-      return false;
-    };
+    // Allow text selection and drag/drop for better UX
+    // Text selection and drag/drop are now enabled
 
     // Add event listeners
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('selectstart', handleSelectStart);
-    document.addEventListener('dragstart', handleDragStart);
 
     // Override console methods
     const originalConsole = { ...console };
@@ -130,8 +119,6 @@ export function DevToolsDisabler() {
     return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('selectstart', handleSelectStart);
-      document.removeEventListener('dragstart', handleDragStart);
       
       clearInterval(clearConsoleInterval);
       clearInterval(devToolsInterval);
