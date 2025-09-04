@@ -33,6 +33,12 @@ RUN npm run build
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy public files for standalone build
+COPY --chown=nextjs:nodejs public ./public
+
+# Copy static files for standalone build
+COPY --chown=nextjs:nodejs .next/static ./.next/standalone/.next/static
+
 # Set correct permissions
 RUN chown -R nextjs:nodejs /app/.next
 
@@ -46,5 +52,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application using standalone server
+CMD ["node", ".next/standalone/server.js"]
