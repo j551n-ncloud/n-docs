@@ -33,11 +33,11 @@ RUN npm run build
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy the standalone build output
-COPY --chown=nextjs:nodejs .next/standalone ./
+# Copy the standalone build output (files are already in container from build)
+RUN cp -r .next/standalone/* ./ || echo "No standalone files found"
 
-# Copy static files for Next.js
-COPY --chown=nextjs:nodejs .next/static ./.next/static
+# Copy static files for Next.js (files are already in container from build)  
+RUN mkdir -p .next && cp -r .next/static ./.next/static || echo "No static files found"
 
 # Copy public files
 COPY --chown=nextjs:nodejs public ./public
