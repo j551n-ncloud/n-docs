@@ -4,8 +4,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Production build
-.next
+# Production build (exclude cache but keep standalone and static)
+.next/cache
+.next/build
 out
 
 # Environment variables

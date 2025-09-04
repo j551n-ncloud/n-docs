@@ -35,6 +35,8 @@ RUN adduser --system --uid 1001 nextjs
 
 # Copy the standalone build output
 COPY --chown=nextjs:nodejs .next/standalone ./
+
+# Copy static files for Next.js
 COPY --chown=nextjs:nodejs .next/static ./.next/static
 
 # Copy public files
