@@ -1,7 +1,6 @@
 {
   "title": "Kubernetes",
   "pages": [
-    "index",
     "installation-guide",
     "kubernetes-fundamentals",
     "awx-deployment"
