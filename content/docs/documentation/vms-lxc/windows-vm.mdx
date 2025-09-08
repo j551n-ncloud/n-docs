@@ -1,0 +1,653 @@
+---
+title: Windows GPU VM Setup
+description: Complete guide to setting up Windows VMs in Proxmox with GPU passthrough
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Steps, Step } from 'fumadocs-ui/components/steps';
+import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+
+# Windows VM Setup with GPU Passthrough
+
+This comprehensive guide walks you through setting up a Windows 10/11 virtual machine in Proxmox VE with GPU passthrough capabilities for enhanced performance.
+
+<Callout type="warn">
+GPU passthrough requires compatible hardware and proper IOMMU configuration. Ensure your system supports virtualization features before proceeding.
+</Callout>
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- **Proxmox VE** installed and configured
+- **Compatible GPU** for passthrough (dedicated GPU recommended)
+- **IOMMU enabled** in BIOS/UEFI
+- **Windows ISO** file downloaded
+- **VirtIO drivers ISO** (recommended for optimal performance)
+
+<Callout type="info">
+This guide assumes you have already configured GPU passthrough prerequisites using tools like PECU or manual configuration.
+</Callout>
+
+## VM Creation and Configuration
+
+<Steps>
+<Step>
+### Create the Virtual Machine
+
+Create a new VM through the Proxmox web interface:
+
+**General Tab:**
+- **VM ID**: Choose an available ID (e.g., 100)
+- **Name**: Windows-GPU-VM
+- **Resource Pool**: Optional
+
+**OS Tab:**
+- **Use CD/DVD disc image file**: Select your Windows ISO
+- **Guest OS**: Microsoft Windows
+- **Version**: 10/2016/2019/2022
+
+**System Tab:**
+- **Graphic card**: Default (VGA)
+- **Machine**: Default (i440fx)
+- **SCSI Controller**: VirtIO SCSI single
+- **BIOS**: SeaBIOS (will change to UEFI later)
+
+**Hard Disk Tab:**
+- **Bus/Device**: VirtIO Block (scsi0)
+- **Storage**: Select your storage
+- **Disk size**: 60GB minimum (adjust as needed)
+- **Cache**: Write back (unsafe)
+
+**CPU Tab:**
+- **Sockets**: 1
+- **Cores**: 4-8 (adjust based on your hardware)
+- **Type**: host
+
+**Memory Tab:**
+- **Memory**: 8192MB minimum (adjust as needed)
+- **Ballooning Device**: Enabled
+
+**Network Tab:**
+- **Bridge**: vmbr0
+- **Model**: VirtIO (paravirtualized)
+
+<Callout type="warn">
+**IMPORTANT**: Do NOT start the VM yet. Additional configuration is required first.
+</Callout>
+</Step>
+
+<Step>
+### Download VirtIO Drivers (Recommended)
+
+Download the latest VirtIO drivers for optimal performance:
+
+```bash
+# Download VirtIO drivers ISO
+cd /var/lib/vz/template/iso
+wget https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso
+```
+
+**Alternative**: Download from [VirtIO Drivers Official Page](https://github.com/virtio-win/virtio-win-pkg-scripts)
+
+Mount the VirtIO ISO as a second CD-ROM drive in your VM hardware configuration.
+</Step>
+
+<Step>
+### Configure UEFI Boot
+
+Navigate to your VM's **Options** tab and configure:
+
+<Tabs items={['Boot Configuration', 'BIOS Settings', 'Additional Options']}>
+
+<Tab value="Boot Configuration">
+- **Boot Order**: 
+  1. CD-ROM (ide2)
+  2. Hard Disk (scsi0)
+- **SCSI Controller**: VirtIO SCSI Single
+</Tab>
+
+<Tab value="BIOS Settings">
+- **BIOS**: Change from SeaBIOS to **OVMF (UEFI)**
+
+<Callout type="info">
+When changing to UEFI, Proxmox will prompt you to add an EFI disk. Accept this and add the EFI disk through Hardware → Add → EFI Disk.
+</Callout>
+</Tab>
+
+<Tab value="Additional Options">
+- **Machine**: q35 (will be set in config file)
+- **QEMU Agent**: Enabled (install agent in Windows later)
+</Tab>
+
+</Tabs>
+</Step>
+
+<Step>
+### Edit VM Configuration File
+
+Access the Proxmox shell and edit the VM configuration:
+
+```bash
+# Edit VM config file (replace <vmid> with your VM ID)
+nano /etc/pve/qemu-server/<vmid>.conf
+```
+
+Add these lines to optimize performance and enable GPU passthrough:
+
+```bash
+# Machine type for PCIe support
+machine: q35
+
+# CPU configuration for better performance
+cpu: host,hidden=1,flags=+pcid
+
+# Additional arguments for NVIDIA compatibility
+args: -cpu 'host,+kvm_pv_unhalt,+kvm_pv_eoi,hv_vendor_id=NV43FIX,kvm=off'
+```
+
+<Callout type="tip">
+The `hidden=1` and `kvm=off` flags help prevent GPU driver detection of virtualization, which is important for NVIDIA cards.
+</Callout>
+
+Save and exit the editor (Ctrl+X, Y, Enter).
+</Step>
+
+<Step>
+### Add GPU PCI Device
+
+In the VM's **Hardware** tab:
+
+1. Click **Add** → **PCI Device**
+2. Select your GPU from the device list
+3. Configure PCI device settings:
+
+```
+Device: [Your GPU - e.g., NVIDIA GeForce GTX 1050 Ti]
+All Functions: ✓ YES (IMPORTANT)
+ROM-Bar: ✓ YES  
+Primary GPU: ☐ NO (initially)
+PCI-Express: ✓ YES (requires machine: q35)
+```
+
+<Callout type="warn">
+**Critical**: Ensure "All Functions" is checked to pass through both the GPU and its audio controller.
+</Callout>
+</Step>
+</Steps>
+
+## Windows Installation Process
+
+<Steps>
+<Step>
+### Start VM and Begin Installation
+
+1. **Start the VM** from the Proxmox interface
+2. **Open Console** (noVNC) to access the VM display
+3. **Boot from Windows ISO** and begin installation
+
+The Windows installer should start normally.
+</Step>
+
+<Step>
+### Install VirtIO Drivers During Setup
+
+When Windows asks "Where do you want to install Windows?" and shows no drives:
+
+<Tabs items={['Storage Driver', 'Network Driver', 'ISO Management']}>
+
+<Tab value="Storage Driver">
+1. Click **Load driver**
+2. Click **Browse**
+3. Navigate to VirtIO CD-ROM drive
+4. Go to: `vioscsi → w10 → amd64`
+5. Click **OK** to install Red Hat VirtIO SCSI driver
+
+Your hard drive should now appear in the installation list.
+</Tab>
+
+<Tab value="Network Driver">
+Before continuing installation, also install network drivers:
+
+1. Click **Load driver** again
+2. Navigate to VirtIO CD-ROM drive  
+3. Go to: `NetKVM → w10 → amd64`
+4. Install the network adapter driver
+</Tab>
+
+<Tab value="ISO Management">
+**Important**: Switch CD-ROM back to Windows ISO:
+
+1. Go to VM **Hardware** tab
+2. Double-click **CD-ROM (ide2)**
+3. Change from VirtIO ISO back to **Windows ISO**
+4. Return to console and click **Refresh**
+</Tab>
+
+</Tabs>
+</Step>
+
+<Step>
+### Complete Windows Installation
+
+1. **Select your hard drive** and continue installation
+2. **Follow Windows setup** prompts normally
+3. **When prompted to restart**: 
+   - Right-click VM → **Stop**
+   - Remove Windows ISO from CD-ROM
+   - **Start** VM again
+
+<Callout type="info">
+Windows should now boot from the hard drive and complete the initial setup process.
+</Callout>
+</Step>
+</Steps>
+
+## Post-Installation Configuration
+
+<Steps>
+<Step>
+### Enable Remote Desktop Access
+
+Since we'll disable the console display, set up remote access first:
+
+<Tabs items={['Windows RDP', 'Alternative Methods']}>
+
+<Tab value="Windows RDP">
+1. **Right-click This PC** → Properties
+2. Click **Advanced system settings**
+3. Under **Remote Desktop**: Enable
+4. **Add users** who can connect remotely
+5. **Note the VM's IP address** from network settings
+
+**Test RDP connection** before proceeding to next step.
+</Tab>
+
+<Tab value="Alternative Methods">
+Alternative remote access options:
+- **TeamViewer** or **AnyDesk**
+- **VNC Server** (TightVNC, UltraVNC)
+- **SSH** with X11 forwarding (advanced)
+
+Choose based on your preference and network setup.
+</Tab>
+
+</Tabs>
+</Step>
+
+<Step>
+### Disable Console Display
+
+To properly enable GPU passthrough:
+
+1. Go to VM **Hardware** tab
+2. Double-click **Display (VGA)**
+3. Change to **none**
+4. **Stop** and **Start** the VM
+
+<Callout type="warn">
+After this step, you can only access the VM through remote desktop or the methods configured in the previous step.
+</Callout>
+
+**If you cannot reconnect via RDP:**
+- Return to Hardware tab
+- Edit **PCI Device** (your GPU)
+- Check **Primary GPU**: YES
+- Stop and start VM again
+</Step>
+
+<Step>
+### Install GPU Drivers
+
+Connect to your VM via remote desktop and install GPU drivers:
+
+<Tabs items={['NVIDIA Drivers', 'AMD Drivers', 'Troubleshooting']}>
+
+<Tab value="NVIDIA Drivers">
+1. **Download drivers** from [nvidia.com](https://nvidia.com)
+2. **Check Device Manager** for Code 43 errors (expected initially)
+3. **Install downloaded drivers**
+
+If standard installation fails:
+- Use **GeForce Experience** installer
+- May require NVIDIA account creation
+- Provides better compatibility with virtualized environments
+
+```bash
+# Alternative: Use NVIDIA Studio drivers for better stability
+# Download from NVIDIA website under "Studio Drivers" section
+```
+</Tab>
+
+<Tab value="AMD Drivers">
+1. **Download drivers** from [amd.com](https://amd.com)
+2. Use **AMD Software: Adrenalin Edition**
+3. **Install with default settings**
+
+AMD drivers typically have fewer virtualization detection issues.
+</Tab>
+
+<Tab value="Troubleshooting">
+**Common Issues:**
+
+**Code 43 Error:**
+- Ensure `kvm=off` in VM config
+- Verify `hidden=1` CPU flag
+- May need GPU ROM file (see advanced section)
+
+**Driver Installation Fails:**
+- Try older driver versions
+- Use DDU (Display Driver Uninstaller) to clean previous attempts
+- Install in Safe Mode
+
+**Missing VirtIO Drivers:**
+- Mount VirtIO ISO again
+- Install missing drivers from Device Manager
+- Point to appropriate VirtIO subdirectories
+</Tab>
+
+</Tabs>
+</Step>
+</Steps>
+
+## Advanced Configuration
+
+### GPU ROM File (If Needed)
+
+Some GPUs require a ROM file for proper passthrough:
+
+<Tabs items={['Extract ROM', 'Download ROM', 'Apply ROM']}>
+
+<Tab value="Extract ROM">
+```bash
+# Extract ROM from your GPU (run on Proxmox host)
+cd /sys/bus/pci/devices/0000:01:00.0/
+echo 1 > rom
+cat rom > /usr/share/kvm/gpu-rom.bin
+echo 0 > rom
+```
+
+Replace `0000:01:00.0` with your GPU's PCI address.
+</Tab>
+
+<Tab value="Download ROM">
+Alternative: Download ROM from [TechPowerUp GPU Database](https://www.techpowerup.com/vgabios/)
+
+1. **Search for your exact GPU model**
+2. **Download the ROM file**
+3. **Copy to Proxmox**: `/usr/share/kvm/`
+
+```bash
+# Copy ROM file to Proxmox
+scp gpu-rom.bin root@proxmox-ip:/usr/share/kvm/
+```
+</Tab>
+
+<Tab value="Apply ROM">
+Edit VM configuration to use ROM file:
+
+```bash
+# Edit VM config
+nano /etc/pve/qemu-server/<vmid>.conf
+
+# Modify the hostpci line to include ROM file
+hostpci0: 01:00,pcie=1,romfile=gpu-rom.bin
+```
+
+**For NVIDIA GTX 10XX series**, you may need to patch the ROM:
+- [nvidia-kvm-patcher](https://github.com/sk1080/nvidia-kvm-patcher)
+- [NVIDIA-vBIOS-VFIO-Patcher](https://github.com/Matoking/NVIDIA-vBIOS-VFIO-Patcher)
+</Tab>
+
+</Tabs>
+
+### Performance Optimization
+
+<Tabs items={['CPU Optimization', 'Memory Tuning', 'Storage Performance']}>
+
+<Tab value="CPU Optimization">
+```bash
+# Advanced CPU configuration
+cpu: host,hidden=1,flags=+pcid,+spec-ctrl,+ssbd,+pdpe1gb,+md-clear,+aes
+
+# CPU pinning for dedicated cores (optional)
+# Replace with your actual core numbers
+vcpus: 4
+affinity: 4,5,6,7
+```
+
+**NUMA Configuration:**
+```bash
+# For multi-socket systems
+numa: 1
+```
+</Tab>
+
+<Tab value="Memory Tuning">
+```bash
+# Huge pages for better performance
+# Add to VM config
+hugepages: 1024
+
+# Memory ballooning (disable for gaming VMs)
+balloon: 0
+```
+
+**Host Configuration:**
+```bash
+# Enable huge pages on host
+echo 4096 > /proc/sys/vm/nr_hugepages
+```
+</Tab>
+
+<Tab value="Storage Performance">
+```bash
+# Optimize disk performance
+scsi0: local-lvm:vm-100-disk-0,cache=writeback,discard=on,ssd=1
+
+# For NVMe SSDs
+scsi0: local-lvm:vm-100-disk-0,cache=none,discard=on,ssd=1,iothread=1
+```
+
+**Additional Storage Options:**
+- **Cache**: `writeback` for performance, `writethrough` for safety
+- **IO Thread**: Enable for better I/O performance
+- **Discard**: Enable for SSD TRIM support
+</Tab>
+
+</Tabs>
+
+### Audio Passthrough
+
+For complete multimedia experience:
+
+```bash
+# Add audio device to VM config
+audio0: device=ich9-intel-hda,driver=spice
+
+# Or for better quality
+audio0: device=ich9-intel-hda,driver=pa,server=unix:/run/user/1000/pulse/native
+```
+
+### USB Device Passthrough
+
+Pass through USB devices like keyboards, mice, or controllers:
+
+1. **Hardware** tab → **Add** → **USB Device**
+2. **Select device** from list
+3. **Configure options**:
+   - **USB3**: Yes (if supported)
+   - **Use USB Vendor/Device ID**: Yes (for device persistence)
+
+## Troubleshooting Common Issues
+
+### VM Won't Start
+
+<Callout type="warn">
+**Check these common issues:**
+</Callout>
+
+```bash
+# Check VM configuration syntax
+cat /etc/pve/qemu-server/<vmid>.conf
+
+# Verify GPU is not in use by host
+lspci -nnk | grep -A 3 VGA
+
+# Check IOMMU groups
+find /sys/kernel/iommu_groups/ -type l | sort -V
+```
+
+### Performance Issues
+
+<Tabs items={['CPU Performance', 'Graphics Performance', 'Network Performance']}>
+
+<Tab value="CPU Performance">
+**Symptoms**: Slow overall performance, high CPU wait times
+
+**Solutions**:
+- Enable **CPU host passthrough**
+- Configure **CPU pinning** for dedicated cores
+- Disable **CPU mitigations** (security trade-off)
+- Enable **huge pages**
+
+```bash
+# Check CPU configuration
+cat /proc/cpuinfo | grep flags
+```
+</Tab>
+
+<Tab value="Graphics Performance">
+**Symptoms**: Low FPS, graphics artifacts, driver issues
+
+**Solutions**:
+- Verify **GPU passthrough** is working
+- Install **latest GPU drivers**
+- Check for **Code 43 errors**
+- Ensure **Primary GPU** is set correctly
+- Try different **driver versions**
+
+```bash
+# Check GPU status in Windows
+# Device Manager → Display adapters
+```
+</Tab>
+
+<Tab value="Network Performance">
+**Symptoms**: Slow network speeds, high latency
+
+**Solutions**:
+- Use **VirtIO network adapter**
+- Install **VirtIO network drivers**
+- Enable **multiqueue** networking
+- Adjust **network buffer sizes**
+
+```bash
+# Enable multiqueue in VM config
+net0: virtio=XX:XX:XX:XX:XX:XX,bridge=vmbr0,queues=4
+```
+</Tab>
+
+</Tabs>
+
+### Driver Installation Issues
+
+<Callout type="error">
+**NVIDIA Code 43 Error**
+</Callout>
+
+This is the most common issue with NVIDIA GPU passthrough:
+
+**Solutions**:
+1. **Verify VM configuration** includes `kvm=off` and `hidden=1`
+2. **Use proper ROM file** if required
+3. **Try older driver versions**
+4. **Use GeForce Experience** installer
+5. **Patch ROM file** for GTX 10XX series
+
+**Advanced Fix**:
+```bash
+# Add to VM config for stubborn NVIDIA cards
+args: -cpu 'host,+kvm_pv_unhalt,+kvm_pv_eoi,hv_vendor_id=proxmox,kvm=off' -machine kernel_irqchip=on
+```
+
+## Security Considerations
+
+### VM Isolation
+
+<Callout type="info">
+GPU passthrough can potentially reduce VM isolation. Consider these security measures:
+</Callout>
+
+- **Network segmentation**: Isolate VM network traffic
+- **Firewall rules**: Restrict VM network access
+- **Regular updates**: Keep Windows and drivers updated
+- **Antivirus**: Install reputable antivirus software
+- **Backup strategy**: Regular VM backups
+
+### Host Security
+
+```bash
+# Ensure GPU is properly bound to VFIO
+lspci -nnk | grep -A 3 "VGA\|3D"
+
+# Check IOMMU is enabled
+dmesg | grep -i iommu
+
+# Verify secure boot status (if using UEFI)
+mokutil --sb-state
+```
+
+## Performance Benchmarks
+
+### Expected Performance
+
+With proper configuration, you should achieve:
+
+- **CPU Performance**: 90-95% of bare metal
+- **GPU Performance**: 95-98% of bare metal  
+- **Memory Performance**: 98-99% of bare metal
+- **Storage Performance**: 85-95% depending on configuration
+
+### Benchmarking Tools
+
+**Windows Benchmarks**:
+- **3DMark**: Graphics performance
+- **Cinebench**: CPU performance
+- **CrystalDiskMark**: Storage performance
+- **MemTest86**: Memory stability
+
+**Gaming Performance**:
+- Most games should run at near-native performance
+- VR applications typically work well
+- Streaming software (OBS, etc.) functions normally
+
+## Conclusion
+
+Successfully setting up a Windows VM with GPU passthrough in Proxmox provides near-native performance for gaming, content creation, and GPU-accelerated workloads. Key success factors include:
+
+✅ **Proper hardware support** (IOMMU, compatible GPU)  
+✅ **Correct VM configuration** (UEFI, q35 machine type, CPU flags)  
+✅ **VirtIO drivers** for optimal performance  
+✅ **GPU driver compatibility** (handling Code 43 errors)  
+✅ **Performance tuning** (CPU pinning, huge pages, storage optimization)  
+
+<Callout type="tip">
+Start with basic configuration and gradually add optimizations. Test each change to identify what works best for your specific hardware combination.
+</Callout>
+
+## Additional Resources
+
+- [Proxmox VE GPU Passthrough Guide](https://pve.proxmox.com/wiki/PCI_Passthrough)
+- [VFIO GPU Passthrough Guide](https://wiki.archlinux.org/title/PCI_passthrough_via_OVMF)
+- [Level1Techs GPU Passthrough Forum](https://forum.level1techs.com/c/hardware/gpu-passthrough/30)
+- [r/VFIO Subreddit](https://reddit.com/r/VFIO)
+- [VirtIO Drivers Documentation](https://docs.fedoraproject.org/en-US/quick-docs/creating-windows-virtual-machines-using-virtio-drivers/)
+
+## Next Steps
+
+1. **Install QEMU Guest Agent** for better VM management
+2. **Configure automatic backups** for your VM
+3. **Set up monitoring** for performance tracking
+4. **Explore advanced features** like SR-IOV or multiple GPU passthrough
+5. **Consider clustering** for high availability setups

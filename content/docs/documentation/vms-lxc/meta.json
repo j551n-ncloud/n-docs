@@ -1,5 +1,7 @@
 {
   "title": "VMs & LXC",
+  "description": "Virtual machines and Linux containers in Proxmox VE",
   "pages": [
+    "windows-vm"
   ]
 }
