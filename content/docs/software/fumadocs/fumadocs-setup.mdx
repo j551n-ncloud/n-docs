@@ -1,135 +1,118 @@
 ---
-title: Fumadocs Setup
-description: Complete guide to setting up Fumadocs documentation sites with sidebar tabs and deployment
+title: Fumadocs Setup Guide
+description: Simple guide to setting up and deploying Fumadocs documentation sites
 ---
 
 import { Tabs, Tab } from 'fumadocs-ui/components/tabs';
+import { Callout } from 'fumadocs-ui/components/callout';
 
-# Fumadocs Setup
+# Fumadocs Setup Guide
 
-Complete guide to creating a professional documentation site like N-Docs using Fumadocs, including sidebar tabs, icons, and deployment.
+Learn how to create a professional documentation site using Fumadocs with sidebar tabs, themes, and deployment options.
 
 ## Prerequisites
 
-Before starting, ensure you have:
 - Node.js 18+ installed
 - Basic knowledge of React and Next.js
-- A code editor (VS Code recommended)
+- Code editor (VS Code recommended)
 
-## Project Setup
+## Quick Start
 
-### 1. Create New Fumadocs Project
+### 1. Create New Project
 
-<Tabs items={['npm', 'pnpm', 'yarn', 'bun']}>
+<Tabs items={['npm', 'pnpm', 'yarn']}>
 <Tab value="npm">
 ```bash
-npx create-fumadocs-app
-```
-</Tab>
-<Tab value="pnpm">
-```bash
-pnpm create fumadocs-app
-```
-</Tab>
-<Tab value="yarn">
-```bash
-yarn create fumadocs-app
-```
-</Tab>
-<Tab value="bun">
-```bash
-bun create fumadocs-app
-```
-</Tab>
-</Tabs>
-
-Follow the interactive setup:
-- Choose your project name (e.g., `my-docs`)
-- Select **Content Collections** as the content source
-- Choose **Yes** for TypeScript
-- Select your preferred styling approach
-
-### 2. Navigate to Project
-
-```bash
+npx create-fumadocs-app my-docs
 cd my-docs
-```
-
-### 3. Install Dependencies and Start Development
-
-<Tabs items={['npm', 'pnpm', 'yarn', 'bun']}>
-<Tab value="npm">
-```bash
 npm install
 npm run dev
 ```
 </Tab>
 <Tab value="pnpm">
 ```bash
+pnpm create fumadocs-app my-docs
+cd my-docs
 pnpm install
 pnpm dev
 ```
 </Tab>
 <Tab value="yarn">
 ```bash
+yarn create fumadocs-app my-docs
+cd my-docs
 yarn install
 yarn dev
 ```
 </Tab>
-<Tab value="bun">
-```bash
-bun install
-bun dev
-```
-</Tab>
 </Tabs>
 
-Your documentation site will be available at `http://localhost:3000`.
+### 2. Setup Options
 
-## Setting Up Sidebar Tabs
+During setup, choose:
+- **Content source**: Content Collections
+- **TypeScript**: Yes
+- **Styling**: Tailwind CSS
 
-### 1. Create Content Structure
+Your site will be available at `http://localhost:3000`
 
-Create your main documentation sections:
+## Folder Structure
+
+Create your documentation structure:
 
 ```bash
 mkdir -p content/docs/documentation
 mkdir -p content/docs/software  
 mkdir -p content/docs/scripts
-mkdir -p content/docs/knowledge
 ```
 
-### 2. Configure Root Meta.json
+Basic structure:
+```
+content/docs/
+├── index.mdx
+├── meta.json
+├── documentation/
+│   ├── index.mdx
+│   ├── meta.json
+│   └── docker/
+├── software/
+│   ├── index.mdx
+│   ├── meta.json
+│   └── nextcloud/
+└── scripts/
+    ├── index.mdx
+    └── meta.json
+```
 
-Update `content/docs/meta.json`:
+## Configuration
 
+### Root Configuration
+
+**content/docs/meta.json:**
 ```json
 {
-  "title": "My Documentation",
+  "title": "My Docs",
   "pages": [
     "index",
-    "documentation", 
-    "software",
-    "scripts",
-    "knowledge"
+    "documentation",
+    "software", 
+    "scripts"
   ]
 }
 ```
 
-### 3. Create Section Meta.json Files
+### Sidebar Tabs
 
-For each section, create a `meta.json` with `"root": true`:
+For sidebar tabs, add `"root": true` to section meta.json files:
 
 **content/docs/documentation/meta.json:**
 ```json
 {
   "title": "Documentation",
-  "description": "Technical documentation and guides",
   "root": true,
   "pages": [
     "index",
-    "docker",
-    "kubernetes"
+    "docker"
   ]
 }
 ```
@@ -137,58 +120,44 @@ For each section, create a `meta.json` with `"root": true`:
 **content/docs/software/meta.json:**
 ```json
 {
-  "title": "Software", 
-  "description": "Software documentation and guides",
+  "title": "Software",
   "root": true,
   "pages": [
     "index",
-    "fumadocs-setup",
-    "fumadocs-cli"
+    "nextcloud"
   ]
 }
 ```
 
-## Important: Sidebar Tab Structure
+## Adding Icons & Favicon
 
-**Key Learning:** Keep sidebar tabs at the root level to avoid conflicts:
+### Modern Icons with Lucide React
 
-✅ **Correct Structure:**
-- Each major category as its own root-level folder with `"root": true`
-- Avoid nesting tabs within tabs
-- Keep structure flat for proper sidebar functionality
+Install modern icons:
+```bash
+pnpm add lucide-react
+```
 
-❌ **Avoid Nested Tabs:**
-- Don't nest folders with `"root": true` inside other root folders
-- This causes conflicts with Fumadocs sidebar detection
-
-## Adding Icons to Sidebar Tabs
-
-Update `src/app/docs/layout.tsx` to add icons:
-
+Update `src/app/docs/layout.tsx`:
 ```tsx
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
-import { baseOptions } from '@/lib/layout.shared';
-import { source } from '@/lib/source';
+import { BookOpen, Monitor, Terminal } from 'lucide-react';
 
-export default function Layout({ children }: LayoutProps<'/docs'>) {
+export default function Layout({ children }) {
   return (
     <DocsLayout 
-      tree={source.pageTree} 
-      {...baseOptions()}
+      tree={source.pageTree}
       sidebar={{
         tabs: {
-          transform: (option, node) => {
+          transform: (option) => {
             if (option.title === 'Documentation') {
-              return {
-                ...option,
-                icon: <DocumentIcon className="w-4 h-4" />,
-              };
+              return { ...option, icon: <BookOpen className="w-4 h-4" /> };
             }
             if (option.title === 'Software') {
-              return {
-                ...option,
-                icon: <CpuChipIcon className="w-4 h-4" />,
-              };
+              return { ...option, icon: <Monitor className="w-4 h-4" /> };
+            }
+            if (option.title === 'Scripts') {
+              return { ...option, icon: <Terminal className="w-4 h-4" /> };
             }
             return option;
           },
@@ -201,72 +170,125 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
 }
 ```
 
-## Deployment
+### Custom Favicon
 
-### 1. Build for Production
+Replace default favicon by adding to `src/app/layout.tsx`:
+```tsx
+import type { Metadata } from 'next';
 
-<Tabs items={['npm', 'pnpm', 'yarn', 'bun']}>
-<Tab value="npm">
-```bash
-npm run build
+export const metadata: Metadata = {
+  title: 'My Docs',
+  description: 'Documentation site',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/apple-touch-icon.png',
+  },
+};
 ```
+
+Add favicon files to `public/` folder:
+- `favicon.ico` (32x32)
+- `favicon-16x16.png` 
+- `apple-touch-icon.png` (180x180)
+```
+
+## Themes
+
+Change theme in `src/app/global.css`:
+
+```css
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/vitepress.css';
+@import 'fumadocs-ui/css/preset.css';
+```
+
+Available themes:
+- `vitepress.css` - Clean, minimal
+- `neutral.css` - Professional gray
+- `dusk.css` - Warm colors
+- `ocean.css` - Blue tones
+
+## Writing Content
+
+Create MDX files with frontmatter:
+
+```mdx
+---
+title: My Page
+description: Page description
+---
+
+# My Page
+
+Content goes here.
+
+## Using Components
+
+<Callout type="info">
+This is an info callout.
+</Callout>
+
+<Tabs items={['Tab 1', 'Tab 2']}>
+<Tab value="Tab 1">
+Content for tab 1
 </Tab>
-<Tab value="pnpm">
-```bash
-pnpm build
-```
-</Tab>
-<Tab value="yarn">
-```bash
-yarn build
-```
-</Tab>
-<Tab value="bun">
-```bash
-bun run build
-```
+<Tab value="Tab 2">
+Content for tab 2
 </Tab>
 </Tabs>
-
-### 2. Deploy to Vercel
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
 ```
 
-### 3. Deploy to Netlify
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push code to GitHub
+2. Visit [vercel.com](https://vercel.com)
+3. Import your repository
+4. Deploy automatically
+
+### Build for Production
 
 ```bash
-# Build the project
 npm run build
+```
 
-# Deploy to Netlify (drag & drop the .next folder)
+### Static Export
+
+For static hosting, update `next.config.mjs`:
+
+```javascript
+const config = {
+  output: 'export',
+  trailingSlash: true,
+  images: { unoptimized: true },
+};
+
+export default config;
 ```
 
 ## Troubleshooting
 
-### Common Issues
+Common issues:
 
 **Sidebar tabs not showing:**
-- Ensure `"root": true` is set in section meta.json files
-- Check that the main meta.json does NOT have `"root": true`
-- Avoid nesting tabs within tabs - keep structure flat
+- Add `"root": true` to section meta.json files
+- Don't add `"root": true` to the main meta.json
 
 **Build errors:**
-- Ensure all MDX files have proper frontmatter
-- Check for syntax errors in meta.json files
+- Check MDX syntax
+- Verify all imports exist
+- Ensure frontmatter is valid
 
-**Components not loading:**
-- Verify all imports are correct
-- Check that required dependencies are installed
+**Theme not applying:**
+- Check CSS import order
+- Clear browser cache
 
-## What's Next?
+## Resources
 
-- [Fumadocs CLI](/docs/software/fumadocs-cli) - Learn about CLI tools and components
-- [Official Fumadocs Docs](https://fumadocs.vercel.app) - Complete Fumadocs reference
+- [Official Fumadocs Docs](https://fumadocs.vercel.app)
+- [GitHub Repository](https://github.com/fuma-nama/fumadocs)
+- [Next.js Documentation](https://nextjs.org/docs)
 
-This setup guide provides everything needed to create a professional documentation site using Fumadocs!
+This guide covers the basics of setting up Fumadocs. Start simple and add features as needed!
