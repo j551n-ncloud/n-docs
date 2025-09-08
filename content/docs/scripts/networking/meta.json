@@ -1,0 +1,7 @@
+{
+  "title": "Networking",
+  "description": "Deployment of tailscale Exitnode & Subnetrouter",
+  "pages": [
+    "tailscale-proxmox"
+  ]
+}

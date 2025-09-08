@@ -3,7 +3,6 @@
   "description": "Deployment and automation scripts",
   "pages": [
     "deployment-scripts",
-    "tailscale-proxmox",
     "tmux-manager"
   ]
 }

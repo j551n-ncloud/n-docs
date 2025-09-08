@@ -1,0 +1,7 @@
+{
+  "title": "System management",
+  "description": "Automation of Docker deployments",
+  "pages": [
+    "container-deploy"
+  ]
+}
