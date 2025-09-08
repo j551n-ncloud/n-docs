@@ -1,0 +1,269 @@
+---
+title: Cloudflare Tunnels
+description: Secure remote access to homelab services without opening ports
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Cloudflare Tunnels
+
+Cloudflare Tunnels provide secure, encrypted connections to your homelab services from anywhere in the world without opening ports on your firewall or exposing your home IP address.
+
+<Callout type="info">
+Cloudflare Tunnels eliminate the need for port forwarding, dynamic DNS, or VPN setups while providing enterprise-grade security and performance.
+</Callout>
+
+## Quick Start Guides
+
+<Cards>
+  <Card 
+    title="High Availability Setup" 
+    href="/docs/software/networking/cloudflare-tunnels/high-availability"
+    description="Configure Cloudflare Tunnels with ingress rules and HA deployment"
+  />
+</Cards>
+
+## What are Cloudflare Tunnels?
+
+Cloudflare Tunnels create secure, outbound-only connections from your infrastructure to Cloudflare's edge network. This approach offers several advantages:
+
+### Key Benefits
+
+- **No Port Forwarding**: Services remain behind your firewall
+- **Hide Origin IP**: Your home IP address stays private
+- **Built-in DDoS Protection**: Cloudflare's network protects your services
+- **SSL/TLS Termination**: Automatic HTTPS with Cloudflare certificates
+- **Global Performance**: Cloudflare's CDN accelerates your services
+- **Access Control**: Granular authentication and authorization policies
+
+### How It Works
+
+```
+[Your Services] ←→ [cloudflared] ←→ [Cloudflare Edge] ←→ [Internet Users]
+```
+
+1. **cloudflared** daemon runs on your server
+2. Creates secure tunnel to Cloudflare's edge network
+3. Cloudflare routes traffic to your services through the tunnel
+4. Users access your services via Cloudflare's global network
+
+## Use Cases
+
+### Homelab Services
+- Self-hosted applications (Nextcloud, Plex, etc.)
+- Development environments
+- IoT device management
+- Home automation dashboards
+
+### Business Applications
+- Internal tools and dashboards
+- Development and staging environments
+- Remote access to on-premises services
+- Hybrid cloud architectures
+
+### Development Workflows
+- Local development server sharing
+- Webhook endpoints for testing
+- CI/CD pipeline integration
+- API development and testing
+
+## Architecture Options
+
+### Single Instance
+- Simple setup for basic use cases
+- One cloudflared instance per server
+- Suitable for personal projects
+
+### High Availability
+- Multiple cloudflared instances
+- Automatic failover capabilities
+- Load balancing across instances
+- Enterprise-grade reliability
+
+### Docker Integration
+- Containerized cloudflared deployment
+- Service discovery with Docker networks
+- Easy scaling and management
+- Perfect for microservices
+
+## Security Features
+
+### Zero Trust Access
+- Identity-based access control
+- Multi-factor authentication
+- Device posture checks
+- Session management
+
+### Network Security
+- Encrypted tunnel connections
+- No inbound firewall rules required
+- Protection against network attacks
+- Secure by default configuration
+
+### Compliance
+- SOC 2 Type II certified
+- GDPR compliant
+- HIPAA eligible
+- Enterprise audit logs
+
+## Getting Started
+
+### Prerequisites
+- Cloudflare account (free tier available)
+- Domain managed by Cloudflare
+- Server or container to run cloudflared
+- Services to expose (web apps, APIs, etc.)
+
+### Basic Setup Process
+1. **Install cloudflared** on your server
+2. **Authenticate** with your Cloudflare account
+3. **Create a tunnel** and get credentials
+4. **Configure ingress rules** for your services
+5. **Start the tunnel** and test connectivity
+6. **Set up DNS records** to route traffic
+
+### Installation Methods
+
+<Cards>
+  <Card title="Binary Installation" description="Direct installation on Linux, macOS, or Windows" />
+  <Card title="Docker Container" description="Containerized deployment with Docker or Docker Compose" />
+  <Card title="Kubernetes" description="Deploy as Kubernetes pods with Helm charts" />
+  <Card title="Package Managers" description="Install via apt, yum, brew, or chocolatey" />
+</Cards>
+
+## Configuration Examples
+
+### Basic Web Service
+```yaml
+tunnel: my-tunnel-id
+credentials-file: /path/to/credentials.json
+
+ingress:
+  - hostname: app.example.com
+    service: http://localhost:8080
+  - service: http_status:404
+```
+
+### Docker Services
+```yaml
+ingress:
+  - hostname: web.example.com
+    service: http://web-container:80
+  - hostname: api.example.com
+    service: http://api-container:3000
+  - service: http_status:404
+```
+
+### Multiple Services
+```yaml
+ingress:
+  - hostname: nextcloud.example.com
+    service: http://localhost:8080
+  - hostname: plex.example.com
+    service: http://localhost:32400
+  - hostname: grafana.example.com
+    service: http://localhost:3000
+  - service: http_status:404
+```
+
+## Management and Monitoring
+
+### Cloudflare Dashboard
+- Tunnel status and health
+- Traffic analytics and metrics
+- Access logs and audit trails
+- Configuration management
+
+### Command Line Tools
+```bash
+# List all tunnels
+cloudflared tunnel list
+
+# Check tunnel status
+cloudflared tunnel info my-tunnel
+
+# View tunnel logs
+cloudflared tunnel logs my-tunnel
+
+# Test tunnel connectivity
+cloudflared tunnel test my-tunnel
+```
+
+### Health Checks
+- Built-in health monitoring
+- Custom health check endpoints
+- Automatic failover on failures
+- Integration with monitoring systems
+
+## Best Practices
+
+### Security
+- Use unique tunnel credentials for each environment
+- Implement proper access policies
+- Regular credential rotation
+- Monitor access logs
+
+### Performance
+- Deploy tunnels close to your services
+- Use appropriate service URLs (avoid localhost when possible)
+- Configure proper timeout values
+- Monitor tunnel latency
+
+### Reliability
+- Set up multiple tunnel instances for HA
+- Use health checks for automatic failover
+- Monitor tunnel connectivity
+- Have backup access methods
+
+## Troubleshooting
+
+### Common Issues
+- **Connection failures**: Check firewall and network connectivity
+- **DNS resolution**: Verify Cloudflare DNS settings
+- **Service unreachable**: Confirm service URLs and ports
+- **Authentication errors**: Validate tunnel credentials
+
+### Debugging Tools
+```bash
+# Enable debug logging
+cloudflared tunnel --loglevel debug run my-tunnel
+
+# Test specific hostname
+curl -H "Host: app.example.com" http://localhost:8080
+
+# Check tunnel connectivity
+cloudflared tunnel test my-tunnel
+```
+
+## Pricing
+
+### Free Tier
+- Up to 50 users
+- Basic tunnel functionality
+- Standard support
+- Perfect for personal use
+
+### Paid Plans
+- Unlimited users
+- Advanced security features
+- Priority support
+- Enterprise integrations
+
+<Callout type="tip">
+Start with the free tier to test Cloudflare Tunnels with your services, then upgrade as your needs grow.
+</Callout>
+
+## Next Steps
+
+1. **Set up your first tunnel** following the high availability guide
+2. **Configure access policies** for enhanced security
+3. **Monitor tunnel performance** using Cloudflare analytics
+4. **Explore advanced features** like load balancing and failover
+
+## Resources
+
+- [Official Cloudflare Tunnels Documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/)
+- [cloudflared GitHub Repository](https://github.com/cloudflare/cloudflared)
+- [Cloudflare Community Forum](https://community.cloudflare.com/)
+- [Zero Trust Dashboard](https://one.dash.cloudflare.com/)

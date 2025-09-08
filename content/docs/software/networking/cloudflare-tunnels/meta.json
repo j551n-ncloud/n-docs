@@ -1,0 +1,7 @@
+{
+  "title": "Cloudflare Tunnels",
+  "description": "Secure remote access to homelab services without opening ports",
+  "pages": [
+    "high-availability"
+  ]
+}

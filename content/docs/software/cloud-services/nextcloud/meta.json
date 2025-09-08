@@ -1,0 +1,9 @@
+{
+  "title": "Nextcloud",
+  "description": "Self-hosted cloud storage and collaboration platform",
+  "pages": [
+    "docker-setup",
+    "configuration",
+    "occ-commands"
+  ]
+}

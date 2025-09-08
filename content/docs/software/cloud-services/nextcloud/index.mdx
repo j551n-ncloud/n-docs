@@ -1,0 +1,181 @@
+---
+title: Nextcloud
+description: Self-hosted cloud storage and collaboration platform
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card';
+import { Callout } from 'fumadocs-ui/components/callout';
+
+# Nextcloud
+
+Nextcloud is a powerful self-hosted cloud storage solution that provides file sharing, collaboration tools, and extensive customization options for individuals and organizations.
+
+<Callout type="info">
+Nextcloud offers enterprise-grade features including end-to-end encryption, advanced user management, and extensive app ecosystem.
+</Callout>
+
+## Quick Start Guides
+
+<Cards>
+  <Card 
+    title="Docker Setup" 
+    href="/docs/software/cloud-services/nextcloud/docker-setup"
+    description="Complete Docker Compose setup with MariaDB, Redis, and Collabora"
+  />
+  <Card 
+    title="Configuration Guide" 
+    href="/docs/software/cloud-services/nextcloud/configuration"
+    description="Comprehensive config.php template and settings"
+  />
+  <Card 
+    title="OCC Commands" 
+    href="/docs/software/cloud-services/nextcloud/occ-commands"
+    description="Command-line administration and maintenance"
+  />
+</Cards>
+
+## Key Features
+
+### File Management
+- **Secure file storage** with encryption at rest and in transit
+- **Version control** with file history and rollback capabilities
+- **External storage** integration (S3, FTP, SMB, etc.)
+- **Large file support** with chunked uploads
+
+### Collaboration
+- **Real-time document editing** with Collabora Online or OnlyOffice
+- **File sharing** with granular permissions and expiration dates
+- **Comments and annotations** on files and folders
+- **Activity feeds** to track changes and updates
+
+### Security & Privacy
+- **End-to-end encryption** for maximum data protection
+- **Two-factor authentication** with multiple providers
+- **Advanced user management** with groups and quotas
+- **Audit logging** for compliance and monitoring
+
+### Integration & Apps
+- **Extensive app store** with 200+ applications
+- **Calendar and contacts** synchronization
+- **Mail client** integration
+- **Video conferencing** with Nextcloud Talk
+- **API access** for custom integrations
+
+## Installation Options
+
+### Docker Deployment (Recommended)
+- Quick setup with Docker Compose
+- Includes database, caching, and document editing
+- Easy updates and maintenance
+- Scalable architecture
+
+### Traditional Installation
+- Direct installation on Linux servers
+- Full control over system configuration
+- Custom PHP and web server setup
+- Manual dependency management
+
+### Managed Hosting
+- Nextcloud hosting providers
+- Fully managed infrastructure
+- Professional support available
+- Enterprise features included
+
+## Architecture Overview
+
+<div style={{ display: 'flex', justifyContent: 'center', margin: '2rem 0' }}>
+  <img 
+    src="/images/nextcloud-architecture.svg" 
+    alt="Nextcloud Architecture Diagram" 
+    style={{ maxWidth: '100%', height: 'auto' }}
+  />
+</div>
+
+The Nextcloud architecture consists of several key components working together:
+
+- **Web Server**: Handles HTTP requests and serves static content (Nginx/Apache)
+- **Application Layer**: Core Nextcloud PHP application with business logic
+- **Database**: Stores metadata, user data, and configuration (MySQL/MariaDB/PostgreSQL)
+- **Redis Cache**: Provides fast caching and session storage
+- **Collabora**: Enables real-time document editing and collaboration
+- **Storage**: File system or object storage for actual file data
+
+## System Requirements
+
+### Minimum Requirements
+- **CPU**: 1 core
+- **RAM**: 512MB
+- **Storage**: 10GB
+- **PHP**: 8.0+
+- **Database**: MySQL 8.0+ or MariaDB 10.6+
+
+### Recommended for Production
+- **CPU**: 4+ cores
+- **RAM**: 4GB+
+- **Storage**: SSD with 100GB+
+- **Network**: Gigabit connection
+- **Backup**: Automated backup solution
+
+## Common Use Cases
+
+### Personal Cloud
+- Replace Google Drive/Dropbox
+- Sync files across devices
+- Photo and video backup
+- Document collaboration
+
+### Small Business
+- Team file sharing
+- Project collaboration
+- Client file portals
+- Document management
+
+### Enterprise
+- Departmental file servers
+- Compliance and governance
+- Integration with existing systems
+- Custom app development
+
+## Getting Started
+
+1. **Choose Installation Method**: Docker is recommended for most users
+2. **Prepare Infrastructure**: Set up server with adequate resources
+3. **Configure Security**: Enable HTTPS, set up firewall rules
+4. **Initial Setup**: Create admin account and configure basic settings
+5. **Add Users**: Create user accounts and set up groups
+6. **Install Apps**: Add required applications from the app store
+7. **Configure Backups**: Set up automated backup procedures
+
+## Best Practices
+
+### Security
+- Always use HTTPS with valid SSL certificates
+- Enable two-factor authentication for all users
+- Regular security updates and patches
+- Implement proper firewall rules
+- Use strong passwords and password policies
+
+### Performance
+- Use Redis or Memcached for caching
+- Optimize database configuration
+- Enable PHP OPcache
+- Use SSD storage for better I/O performance
+- Configure proper PHP memory limits
+
+### Maintenance
+- Regular backups of data and configuration
+- Monitor system resources and logs
+- Keep Nextcloud and apps updated
+- Clean up old files and versions periodically
+- Test restore procedures regularly
+
+## Support and Resources
+
+- **Official Documentation**: [docs.nextcloud.com](https://docs.nextcloud.com)
+- **Community Forum**: [help.nextcloud.com](https://help.nextcloud.com)
+- **GitHub Repository**: [github.com/nextcloud/server](https://github.com/nextcloud/server)
+- **Enterprise Support**: Available for business customers
+
+<Callout type="tip">
+Start with the Docker setup guide for the quickest way to get Nextcloud running with all essential components.
+</Callout>

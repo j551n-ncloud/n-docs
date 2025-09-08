@@ -1,0 +1,448 @@
+---
+title: Nextcloud Configuration
+description: Complete Nextcloud config.php template and configuration guide
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Nextcloud Configuration
+
+This guide provides a comprehensive `config.php` template and configuration options for Nextcloud installations.
+
+<Callout type="warn">
+Always backup your `config/config.php` file before making changes. Test configurations in a staging environment first.
+</Callout>
+
+## Configuration File Template
+
+The main configuration file is located at `/var/www/html/config/config.php`. Here's a complete template:
+
+```php
+<?php
+$CONFIG = array (
+  // 🔧 Maintenance
+  'maintenance_window_start' => 1,     // Start of maintenance window (hour)
+  'maintenance_window_end'   => 1.5,   // End of maintenance window
+  'maintenance'              => false, // Maintenance mode
+
+  // 🌐 Base settings
+  'htaccess.RewriteBase' => '/',
+  'trusted_domains' => 
+  array (
+    0 => 'cloud.example.com',
+    1 => '192.168.0.6',   // Local IP or LAN access
+  ),
+  'overwrite.cli.url'   => 'https://cloud.example.com',
+  'overwriteprotocol'   => 'https',
+  'default_phone_region' => 'DE',
+
+  // 📂 File storage
+  'datadirectory' => '/var/www/html/data',
+  'files.chunked_upload.max_size' => 99000000,
+
+  // 🔑 Security
+  'instanceid'   => 'your-instance-id',
+  'passwordsalt' => 'your-generated-salt',
+  'secret'       => 'your-random-secret',
+
+  // 📦 Apps
+  'apps_paths' => 
+  array (
+    0 => array (
+      'path'     => '/var/www/html/apps',
+      'url'      => '/apps',
+      'writable' => false,
+    ),
+    1 => array (
+      'path'     => '/var/www/html/custom_apps',
+      'url'      => '/custom_apps',
+      'writable' => true,
+    ),
+  ),
+  'app_install_overwrite' =>
+  array (
+    0 => 'otpmanager',   // Example app overwrite
+  ),
+
+  // 🗄 Database
+  'dbtype'        => 'mysql',
+  'dbname'        => 'nextcloud',
+  'dbhost'        => 'mariadb:3306',   // Use container name if Docker
+  'dbport'        => '',
+  'dbtableprefix' => 'oc_',
+  'mysql.utf8mb4' => true,
+  'dbuser'        => 'ncloud-admin',
+  'dbpassword'    => 'your-db-password',
+
+  // 🚀 Version
+  'version' => '31.0.8.1',
+  'installed' => true,
+
+  // 🧠 Caching
+  'memcache.local'      => '\\OC\\Memcache\\APCu',
+  'memcache.distributed'=> '\\OC\\Memcache\\Redis',
+  'memcache.locking'    => '\\OC\\Memcache\\Redis',
+  'redis' =>
+  array (
+    'host'     => 'redis',
+    'password' => '',
+    'port'     => 6379,
+  ),
+
+  // 📧 Mail
+  'mail_smtpmode'     => 'smtp',
+  'mail_smtpsecure'   => 'ssl',
+  'mail_sendmailmode' => 'smtp',
+  'mail_from_address' => 'n-cloud',
+  'mail_domain'       => 'example.com',
+  'mail_smtpauth'     => 1,
+  'mail_smtphost'     => 'smtp.gmail.com',
+  'mail_smtpport'     => '465',
+  'mail_smtpname'     => 'youremail@example.com',
+  'mail_smtppassword' => 'your-app-password',
+
+  // 📝 Logging
+  'loglevel' => 2,
+
+  // 🛠 Admin
+  'upgrade.disable-web'    => true,
+  'integrity.check.disabled' => true,
+);
+```
+
+## Configuration Sections
+
+### Domain and URL Settings
+
+<Tabs items={['Trusted Domains', 'URL Overrides', 'Protocol Settings']}>
+
+<Tab value="Trusted Domains">
+Configure which domains can access your Nextcloud:
+
+```php
+'trusted_domains' => array (
+  0 => 'cloud.example.com',        // Primary domain
+  1 => 'nextcloud.example.com',    // Alternative domain
+  2 => '192.168.1.100',            // Local IP
+  3 => 'localhost',                // Local development
+),
+```
+
+<Callout type="info">
+Add all domains and IP addresses that will be used to access Nextcloud to prevent "Untrusted domain" errors.
+</Callout>
+</Tab>
+
+<Tab value="URL Overrides">
+Override URLs for CLI and web access:
+
+```php
+'overwrite.cli.url' => 'https://cloud.example.com',
+'overwritehost' => 'cloud.example.com',
+'overwriteprotocol' => 'https',
+'overwritewebroot' => '/nextcloud',  // If in subdirectory
+```
+</Tab>
+
+<Tab value="Protocol Settings">
+Force HTTPS and configure protocol handling:
+
+```php
+'forcessl' => true,
+'forceSSLforSubdomains' => true,
+'overwriteprotocol' => 'https',
+```
+</Tab>
+
+</Tabs>
+
+### Database Configuration
+
+<Tabs items={['MySQL/MariaDB', 'PostgreSQL', 'SQLite']}>
+
+<Tab value="MySQL/MariaDB">
+```php
+'dbtype' => 'mysql',
+'dbname' => 'nextcloud',
+'dbhost' => 'localhost',
+'dbport' => '3306',
+'dbtableprefix' => 'oc_',
+'mysql.utf8mb4' => true,
+'dbuser' => 'nextcloud_user',
+'dbpassword' => 'secure_password',
+```
+</Tab>
+
+<Tab value="PostgreSQL">
+```php
+'dbtype' => 'pgsql',
+'dbname' => 'nextcloud',
+'dbhost' => 'localhost',
+'dbport' => '5432',
+'dbtableprefix' => 'oc_',
+'dbuser' => 'nextcloud_user',
+'dbpassword' => 'secure_password',
+```
+</Tab>
+
+<Tab value="SQLite">
+```php
+'dbtype' => 'sqlite3',
+'dbname' => 'nextcloud',
+'dbhost' => '',
+'dbport' => '',
+'dbtableprefix' => 'oc_',
+```
+
+<Callout type="warn">
+SQLite is only recommended for testing or small installations with few users.
+</Callout>
+</Tab>
+
+</Tabs>
+
+### Caching Configuration
+
+Optimize performance with proper caching:
+
+```php
+// APCu for local caching
+'memcache.local' => '\\OC\\Memcache\\APCu',
+
+// Redis for distributed caching and locking
+'memcache.distributed' => '\\OC\\Memcache\\Redis',
+'memcache.locking' => '\\OC\\Memcache\\Redis',
+
+// Redis connection settings
+'redis' => array(
+  'host' => 'localhost',     // or 'redis' for Docker
+  'port' => 6379,
+  'password' => '',          // if Redis has auth
+  'timeout' => 0.0,
+  'dbindex' => 0,
+),
+```
+
+### Mail Configuration
+
+<Tabs items={['SMTP', 'Gmail', 'Sendmail']}>
+
+<Tab value="SMTP">
+```php
+'mail_smtpmode' => 'smtp',
+'mail_smtpsecure' => 'tls',        // or 'ssl'
+'mail_smtpauth' => 1,
+'mail_smtphost' => 'smtp.example.com',
+'mail_smtpport' => '587',          // or '465' for SSL
+'mail_smtpname' => 'username',
+'mail_smtppassword' => 'password',
+'mail_from_address' => 'nextcloud',
+'mail_domain' => 'example.com',
+```
+</Tab>
+
+<Tab value="Gmail">
+```php
+'mail_smtpmode' => 'smtp',
+'mail_smtpsecure' => 'ssl',
+'mail_smtpauth' => 1,
+'mail_smtphost' => 'smtp.gmail.com',
+'mail_smtpport' => '465',
+'mail_smtpname' => 'your-email@gmail.com',
+'mail_smtppassword' => 'app-password',  // Use App Password
+'mail_from_address' => 'nextcloud',
+'mail_domain' => 'gmail.com',
+```
+
+<Callout type="info">
+For Gmail, use an App Password instead of your regular password. Enable 2FA and generate an App Password in your Google Account settings.
+</Callout>
+</Tab>
+
+<Tab value="Sendmail">
+```php
+'mail_smtpmode' => 'sendmail',
+'mail_sendmailmode' => 'smtp',
+'mail_from_address' => 'nextcloud',
+'mail_domain' => 'example.com',
+```
+</Tab>
+
+</Tabs>
+
+### Security Settings
+
+```php
+// Security headers
+'htaccess.IgnoreFrontController' => false,
+'htaccess.RewriteBase' => '/',
+
+// Session settings
+'session_lifetime' => 60 * 60 * 24,    // 24 hours
+'session_keepalive' => true,
+'auto_logout' => false,
+
+// Password policy
+'password_policy' => array(
+  'minLength' => 8,
+  'enforceNonCommonPassword' => true,
+  'enforceNumericCharacters' => true,
+  'enforceSpecialCharacters' => true,
+  'enforceUpperLowerCase' => true,
+),
+
+// Two-factor authentication
+'twofactor_enforced' => 'true',
+'twofactor_enforced_groups' => array('admin'),
+```
+
+### File Handling
+
+```php
+// File upload settings
+'files.chunked_upload.max_size' => 99000000,  // 99MB chunks
+'max_filesize_animated_gifs_public_sharing' => 10,
+
+// Preview settings
+'enable_previews' => true,
+'enabledPreviewProviders' => array(
+  'OC\\Preview\\PNG',
+  'OC\\Preview\\JPEG',
+  'OC\\Preview\\GIF',
+  'OC\\Preview\\BMP',
+  'OC\\Preview\\XBitmap',
+  'OC\\Preview\\MP3',
+  'OC\\Preview\\TXT',
+  'OC\\Preview\\MarkDown',
+  'OC\\Preview\\PDF',
+),
+
+// External storage
+'files_external_allow_create_new_local' => false,
+```
+
+## Environment-Specific Settings
+
+### Development Environment
+
+```php
+// Enable debug mode
+'debug' => true,
+'loglevel' => 0,  // Debug level
+
+// Disable integrity checks for development
+'integrity.check.disabled' => true,
+
+// Allow local domains
+'trusted_domains' => array(
+  0 => 'localhost',
+  1 => '127.0.0.1',
+  2 => 'nextcloud.local',
+),
+```
+
+### Production Environment
+
+```php
+// Disable debug mode
+'debug' => false,
+'loglevel' => 2,  // Warning level
+
+// Enable integrity checks
+'integrity.check.disabled' => false,
+
+// Security settings
+'forcessl' => true,
+'upgrade.disable-web' => true,
+
+// Performance settings
+'memcache.local' => '\\OC\\Memcache\\APCu',
+'memcache.distributed' => '\\OC\\Memcache\\Redis',
+```
+
+## Configuration Management
+
+### Using Environment Variables
+
+You can use environment variables in your config:
+
+```php
+'dbpassword' => getenv('NEXTCLOUD_DB_PASSWORD'),
+'mail_smtppassword' => getenv('NEXTCLOUD_MAIL_PASSWORD'),
+'redis' => array(
+  'host' => getenv('REDIS_HOST') ?: 'localhost',
+  'port' => getenv('REDIS_PORT') ?: 6379,
+),
+```
+
+### Configuration Validation
+
+Use OCC commands to validate your configuration:
+
+```bash
+# Check configuration
+sudo -u www-data php occ config:list system
+
+# Test mail configuration
+sudo -u www-data php occ config:system:get mail_smtphost
+
+# Validate database connection
+sudo -u www-data php occ db:convert-filecache-bigint
+```
+
+## Best Practices
+
+<Callout type="info">
+**Security Best Practices**
+- Never commit real secrets to version control
+- Use strong, unique passwords for all services
+- Enable two-factor authentication
+- Regular security updates
+- Monitor access logs
+</Callout>
+
+1. **Backup Configuration**: Always backup `config.php` before changes
+2. **Use Environment Variables**: Store sensitive data in environment variables
+3. **Test Changes**: Test configuration changes in staging first
+4. **Monitor Logs**: Check Nextcloud logs after configuration changes
+5. **Regular Updates**: Keep Nextcloud and dependencies updated
+
+## Troubleshooting
+
+### Common Configuration Issues
+
+<Callout type="warn">
+**Trusted Domain Error**
+Add your domain to the `trusted_domains` array and restart your web server.
+</Callout>
+
+<Callout type="warn">
+**Database Connection Failed**
+Verify database credentials and ensure the database server is accessible.
+</Callout>
+
+<Callout type="warn">
+**Mail Not Working**
+Check SMTP settings and use App Passwords for Gmail/Outlook.
+</Callout>
+
+### Configuration Reset
+
+If you need to reset configuration:
+
+```bash
+# Backup current config
+cp config/config.php config/config.php.backup
+
+# Reset to minimal config
+sudo -u www-data php occ maintenance:install --admin-user admin --admin-pass password
+```
+
+## Next Steps
+
+- [OCC Command Reference](/docs/software/cloud-services/nextcloud/occ-commands)
+- [Docker Setup Guide](/docs/software/cloud-services/nextcloud/docker-setup)
+- Configure external storage
+- Set up automated backups
+- Implement monitoring and alerting

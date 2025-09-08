@@ -1,0 +1,316 @@
+---
+title: Nextcloud Docker Setup
+description: Complete Docker Compose setup for Nextcloud with MariaDB, Redis, and Collabora
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
+# Nextcloud Docker Setup
+
+This guide provides a complete Docker Compose setup for Nextcloud with MariaDB database, Redis caching, and Collabora Online for document editing.
+
+<Callout type="info">
+This template sets up a full Nextcloud stack suitable for production use with proper caching and database optimization.
+</Callout>
+
+## Docker Compose Configuration
+
+### Complete Stack
+
+Create a `docker-compose.yml` file with the following configuration:
+
+```yaml
+version: "3.9"
+
+services:
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    restart: unless-stopped
+    ports:
+      - "45289:80"  # Web access to Nextcloud
+    environment:
+      - REDIS_HOST=redis
+      - NEXTCLOUD_DATA_DIR=/var/www/html/data
+      - PHP_MEMORY_LIMIT=1000M
+      - PHP_UPLOAD_LIMIT=1024M
+      - PHP_MAX_FILE_UPLOADS=100
+      - NEXTCLOUD_HOSTNAME=cloud.example.com
+      - domain=cloud.example.com
+    volumes:
+      - /mnt/cloud/Nextcloud:/var/www/html
+    depends_on:
+      - app
+      - redis
+    networks:
+      - default
+
+  app:  # MariaDB
+    image: linuxserver/mariadb:10.11.8
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_PASSWORD=your-password
+      - MYSQL_ROOT_PASSWORD=your-root-password
+      - MYSQL_USER=ncloud-admin
+      - PGID=1000
+      - PUID=1000
+      - TZ=Europe/Berlin
+    ports:
+      - "3306:3306"
+    volumes:
+      - /DATA/AppData/mariadb/config:/config
+    networks:
+      - default
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - /DATA/AppData/redis/data:/data
+    networks:
+      - default
+
+  collabora:
+    image: collabora/code
+    container_name: collabora
+    restart: unless-stopped
+    environment:
+      - domain=https://collabora.example.com
+      - username=your-username
+      - password=your-password
+      - DONT_GENERATE=true
+    ports:
+      - "9980:9980"
+    volumes:
+      - /DATA/AppData/collabora:/var/lib/loolwsd
+    networks:
+      - default
+
+networks:
+  default:
+```
+
+## Environment Variables
+
+### Nextcloud Container
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `REDIS_HOST` | Redis server hostname | `redis` |
+| `NEXTCLOUD_DATA_DIR` | Data directory path | `/var/www/html/data` |
+| `PHP_MEMORY_LIMIT` | PHP memory limit | `1000M` |
+| `PHP_UPLOAD_LIMIT` | File upload limit | `1024M` |
+| `NEXTCLOUD_HOSTNAME` | Your domain name | `cloud.example.com` |
+
+### MariaDB Container
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `MYSQL_DATABASE` | Database name | `nextcloud` |
+| `MYSQL_USER` | Database user | `ncloud-admin` |
+| `MYSQL_PASSWORD` | User password | `secure-password` |
+| `MYSQL_ROOT_PASSWORD` | Root password | `root-password` |
+
+### Collabora Container
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `domain` | Nextcloud domain | `https://cloud.example.com` |
+| `username` | Admin username | `admin` |
+| `password` | Admin password | `secure-password` |
+
+## Volume Mapping
+
+<Callout type="warn">
+Ensure the host directories exist and have proper permissions before starting the containers.
+</Callout>
+
+### Required Directories
+
+```bash
+# Create necessary directories
+sudo mkdir -p /mnt/cloud/Nextcloud
+sudo mkdir -p /DATA/AppData/mariadb/config
+sudo mkdir -p /DATA/AppData/redis/data
+sudo mkdir -p /DATA/AppData/collabora
+
+# Set proper ownership (adjust UID/GID as needed)
+sudo chown -R 1000:1000 /mnt/cloud/Nextcloud
+sudo chown -R 1000:1000 /DATA/AppData/
+```
+
+## Deployment Steps
+
+<Steps>
+<Step>
+### Prepare Environment
+
+```bash
+# Create project directory
+mkdir nextcloud-docker
+cd nextcloud-docker
+
+# Create docker-compose.yml file
+nano docker-compose.yml
+```
+</Step>
+
+<Step>
+### Configure Environment Variables
+
+Create a `.env` file for sensitive data:
+
+```bash
+# Database credentials
+MYSQL_PASSWORD=your-secure-password
+MYSQL_ROOT_PASSWORD=your-root-password
+
+# Collabora credentials
+COLLABORA_USERNAME=admin
+COLLABORA_PASSWORD=collabora-password
+
+# Domain configuration
+NEXTCLOUD_DOMAIN=cloud.example.com
+COLLABORA_DOMAIN=collabora.example.com
+```
+</Step>
+
+<Step>
+### Start Services
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f nextcloud
+```
+</Step>
+
+<Step>
+### Initial Setup
+
+1. Access Nextcloud at `http://your-server:45289`
+2. Create admin account
+3. Configure database connection:
+   - Database type: MySQL/MariaDB
+   - Database name: `nextcloud`
+   - Database user: `ncloud-admin`
+   - Database password: (from your configuration)
+   - Database host: `mariadb:3306`
+</Step>
+</Steps>
+
+## Post-Installation Configuration
+
+### Enable Redis Caching
+
+Add to your Nextcloud `config/config.php`:
+
+```php
+'memcache.local' => '\OC\Memcache\APCu',
+'memcache.distributed' => '\OC\Memcache\Redis',
+'memcache.locking' => '\OC\Memcache\Redis',
+'redis' => array(
+  'host' => 'redis',
+  'password' => '',
+  'port' => 6379,
+),
+```
+
+### Configure Collabora Online
+
+1. Install the "Collabora Online" app from the Nextcloud app store
+2. Go to Settings → Administration → Collabora Online
+3. Set server URL: `http://collabora:9980`
+
+## Maintenance Commands
+
+### Backup
+
+```bash
+# Backup Nextcloud data
+docker-compose exec nextcloud tar -czf /tmp/nextcloud-backup.tar.gz /var/www/html
+
+# Backup database
+docker-compose exec mariadb mysqldump -u root -p nextcloud > nextcloud-db-backup.sql
+```
+
+### Updates
+
+```bash
+# Update containers
+docker-compose pull
+docker-compose up -d
+
+# Run Nextcloud upgrade
+docker-compose exec nextcloud sudo -u www-data php occ upgrade
+```
+
+### Monitoring
+
+```bash
+# Check container status
+docker-compose ps
+
+# View resource usage
+docker stats
+
+# Check logs
+docker-compose logs -f --tail=100 nextcloud
+```
+
+## Troubleshooting
+
+### Common Issues
+
+<Callout type="warn">
+**Permission Issues**
+```bash
+# Fix file permissions
+docker-compose exec nextcloud chown -R www-data:www-data /var/www/html
+```
+</Callout>
+
+<Callout type="info">
+**Database Connection Issues**
+- Verify MariaDB container is running
+- Check database credentials in config.php
+- Ensure network connectivity between containers
+</Callout>
+
+### Performance Optimization
+
+```bash
+# Increase PHP memory limit
+docker-compose exec nextcloud sed -i 's/memory_limit = .*/memory_limit = 1024M/' /usr/local/etc/php/php.ini
+
+# Restart container
+docker-compose restart nextcloud
+```
+
+## Security Considerations
+
+1. **Use strong passwords** for all services
+2. **Enable HTTPS** with reverse proxy (nginx/traefik)
+3. **Regular backups** of data and database
+4. **Keep containers updated** regularly
+5. **Restrict network access** to necessary ports only
+
+## Next Steps
+
+- [Configure Nextcloud Settings](/docs/software/cloud-services/nextcloud/configuration)
+- [OCC Command Reference](/docs/software/cloud-services/nextcloud/occ-commands)
+- Set up reverse proxy with SSL
+- Configure automated backups
+- Monitor system resources and logs

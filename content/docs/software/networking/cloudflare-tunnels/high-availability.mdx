@@ -1,16 +1,19 @@
 ---
-title: "Cloudflared Tunnels with Ingress (Web & Docker) and High-Availability"
-description: "Guide for setting up Cloudflare Tunnels with ingress rules for both normal web services and Docker, including HA."
+title: High Availability Setup
+description: Configure Cloudflare Tunnels with ingress rules for web services, Docker containers, and HA deployment
 ---
 
-# Cloudflared Tunnels with Ingress (Web & Docker) and High-Availability
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-Cloudflare Tunnel allows exposing internal services securely using **ingress rules**. You can route traffic to:
+# Cloudflare Tunnels: High Availability Setup
 
-- **Normal web services** (running directly on host)
-- **Docker services** (using Docker service/container names)
+This comprehensive guide covers setting up Cloudflare Tunnels with ingress rules for both traditional web services and Docker containers, including high-availability (HA) configurations.
 
-This guide covers **single-node** and **high-availability (HA)** deployments.
+<Callout type="info">
+Cloudflare Tunnels with ingress rules allow you to route traffic to multiple services through a single tunnel, supporting both host-based services and Docker containers.
+</Callout>
 
 ---
 

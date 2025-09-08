@@ -2,11 +2,7 @@
   "title": "Productivity Tools",
   "description": "Productivity and collaboration software guides",
   "icon": "Zap",
-  "root": true,
   "pages": [
-    "---Note Taking---",
-    "obsidian-sync",
-    "---Collaboration---",
-    "---Automation---"
+    "obsidian-sync"
   ]
 }

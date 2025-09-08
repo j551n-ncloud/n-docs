@@ -1,0 +1,492 @@
+---
+title: Nextcloud OCC Commands
+description: Comprehensive guide to Nextcloud OCC command-line interface
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Nextcloud OCC Command Cheat Sheet
+
+The `occ` (ownCloud/Nextcloud Console) tool is the command-line interface for administering Nextcloud. Run commands as the webserver user (usually `www-data`):
+
+```bash
+sudo -u www-data php occ <command>
+```
+
+<Callout type="info">
+All commands should be run from the Nextcloud installation directory (usually `/var/www/html` or `/var/www/nextcloud`).
+</Callout>
+
+## Maintenance Commands
+
+<Tabs items={['Basic Maintenance', 'Repair Operations', 'Data Management']}>
+
+<Tab value="Basic Maintenance">
+### Maintenance Mode
+
+```bash
+# Enable maintenance mode
+sudo -u www-data php occ maintenance:mode --on
+
+# Disable maintenance mode
+sudo -u www-data php occ maintenance:mode --off
+
+# Check maintenance mode status
+sudo -u www-data php occ maintenance:mode
+```
+
+### System Status
+
+```bash
+# Show server status
+sudo -u www-data php occ status
+
+# Check system information
+sudo -u www-data php occ system:cron
+
+# Update data fingerprint (after manual file changes)
+sudo -u www-data php occ maintenance:data-fingerprint
+```
+</Tab>
+
+<Tab value="Repair Operations">
+### Repair Commands
+
+```bash
+# Run all repair steps
+sudo -u www-data php occ maintenance:repair
+
+# List available repair steps
+sudo -u www-data php occ maintenance:repair --list
+
+# Run specific repair step
+sudo -u www-data php occ maintenance:repair --include-expensive
+
+# Repair file cache
+sudo -u www-data php occ files:cleanup
+```
+
+### Database Repairs
+
+```bash
+# Add missing database indices
+sudo -u www-data php occ db:add-missing-indices
+
+# Add missing database columns
+sudo -u www-data php occ db:add-missing-columns
+
+# Add missing primary keys
+sudo -u www-data php occ db:add-missing-primary-keys
+
+# Convert file cache to big int
+sudo -u www-data php occ db:convert-filecache-bigint
+```
+</Tab>
+
+<Tab value="Data Management">
+### File Operations
+
+```bash
+# Scan all files for all users
+sudo -u www-data php occ files:scan --all
+
+# Scan files for specific user
+sudo -u www-data php occ files:scan username
+
+# Scan with verbose output
+sudo -u www-data php occ files:scan --all --verbose
+
+# Clean up file cache
+sudo -u www-data php occ files:cleanup
+```
+
+### Data Directory
+
+```bash
+# Move data directory
+sudo -u www-data php occ files:move-home username new-location
+
+# Transfer file ownership
+sudo -u www-data php occ files:transfer-ownership source-user target-user
+```
+</Tab>
+
+</Tabs>
+
+## User Management
+
+### User Operations
+
+```bash
+# List all users
+sudo -u www-data php occ user:list
+
+# Show user details
+sudo -u www-data php occ user:info username
+
+# Add new user
+sudo -u www-data php occ user:add username
+
+# Delete user
+sudo -u www-data php occ user:delete username
+
+# Enable user
+sudo -u www-data php occ user:enable username
+
+# Disable user
+sudo -u www-data php occ user:disable username
+```
+
+### Password Management
+
+```bash
+# Reset user password
+sudo -u www-data php occ user:resetpassword username
+
+# Set user password (interactive)
+sudo -u www-data php occ user:resetpassword --password-from-env username
+
+# Generate user report
+sudo -u www-data php occ user:report
+```
+
+### Group Management
+
+```bash
+# List all groups
+sudo -u www-data php occ group:list
+
+# Add user to group
+sudo -u www-data php occ group:adduser groupname username
+
+# Remove user from group
+sudo -u www-data php occ group:removeuser groupname username
+
+# List group members
+sudo -u www-data php occ group:list-members groupname
+```
+
+## App Management
+
+### App Operations
+
+```bash
+# List all apps
+sudo -u www-data php occ app:list
+
+# List enabled apps only
+sudo -u www-data php occ app:list --enabled
+
+# List disabled apps only
+sudo -u www-data php occ app:list --disabled
+
+# Enable app
+sudo -u www-data php occ app:enable contacts
+
+# Disable app
+sudo -u www-data php occ app:disable calendar
+
+# Update all apps
+sudo -u www-data php occ app:update --all
+
+# Update specific app
+sudo -u www-data php occ app:update contacts
+```
+
+### App Information
+
+```bash
+# Get app information
+sudo -u www-data php occ app:info contacts
+
+# Check app dependencies
+sudo -u www-data php occ app:check-code contacts
+```
+
+## Configuration Management
+
+### System Configuration
+
+```bash
+# List all system config
+sudo -u www-data php occ config:list system
+
+# Get specific config value
+sudo -u www-data php occ config:system:get trusted_domains
+
+# Set config value
+sudo -u www-data php occ config:system:set trusted_domains 2 --value=nextcloud.example.com
+
+# Delete config value
+sudo -u www-data php occ config:system:delete trusted_domains 2
+
+# Set config with type
+sudo -u www-data php occ config:system:set debug --type=boolean --value=true
+```
+
+### App Configuration
+
+```bash
+# List app config
+sudo -u www-data php occ config:list app
+
+# Get app config value
+sudo -u www-data php occ config:app:get core backgroundjobs_mode
+
+# Set app config value
+sudo -u www-data php occ config:app:set core backgroundjobs_mode --value=cron
+
+# Delete app config
+sudo -u www-data php occ config:app:delete core some_setting
+```
+
+## Encryption Management
+
+<Callout type="warn">
+Always backup your data and encryption keys before making encryption changes. Encryption operations are irreversible.
+</Callout>
+
+### Encryption Status
+
+```bash
+# Show encryption status
+sudo -u www-data php occ encryption:status
+
+# List encryption modules
+sudo -u www-data php occ encryption:list-modules
+
+# Show encryption module info
+sudo -u www-data php occ encryption:show-key-storage-root
+```
+
+### Enable/Disable Encryption
+
+```bash
+# Enable encryption system
+sudo -u www-data php occ encryption:enable
+
+# Disable encryption system
+sudo -u www-data php occ encryption:disable
+
+# Set default encryption module
+sudo -u www-data php occ encryption:set-default-module OC_DEFAULT_MODULE
+```
+
+### Key Management
+
+```bash
+# Initialize encryption
+sudo -u www-data php occ encryption:initialize
+
+# Enable master key mode
+sudo -u www-data php occ encryption:enable-master-key
+
+# Enable recovery key
+sudo -u www-data php occ encryption:enable-recovery
+
+# Disable recovery key
+sudo -u www-data php occ encryption:disable-recovery
+
+# Change key storage location
+sudo -u www-data php occ encryption:change-key-storage-root /new/key/location
+```
+
+### Encrypt/Decrypt Operations
+
+```bash
+# Encrypt all files (can take very long)
+sudo -u www-data php occ encryption:encrypt-all
+
+# Decrypt all files
+sudo -u www-data php occ encryption:decrypt-all
+
+# Recover user files
+sudo -u www-data php occ encryption:recover username
+```
+
+## Background Jobs
+
+### Cron Management
+
+```bash
+# Run background jobs manually
+sudo -u www-data php occ background:cron
+
+# Set background job mode
+sudo -u www-data php occ background:ajax    # Ajax mode
+sudo -u www-data php occ background:webcron # Webcron mode
+sudo -u www-data php occ background:cron    # System cron mode
+```
+
+### Job Information
+
+```bash
+# List background jobs
+sudo -u www-data php occ background:job:list
+
+# Execute specific job
+sudo -u www-data php occ background:job:execute job-id
+```
+
+## Upgrade and Updates
+
+### Upgrade Operations
+
+```bash
+# Check for updates
+sudo -u www-data php occ update:check
+
+# Perform upgrade (after updating files)
+sudo -u www-data php occ upgrade
+
+# Skip specific migration step
+sudo -u www-data php occ upgrade --skip-migration-test
+
+# Disable maintenance mode after upgrade
+sudo -u www-data php occ maintenance:mode --off
+```
+
+## Security and Integrity
+
+### Security Scans
+
+```bash
+# Run security scan
+sudo -u www-data php occ security:certificates
+
+# Check code integrity
+sudo -u www-data php occ integrity:check-core
+
+# Check app integrity
+sudo -u www-data php occ integrity:check-app contacts
+```
+
+### Two-Factor Authentication
+
+```bash
+# List 2FA providers
+sudo -u www-data php occ twofactorauth:list
+
+# Enable 2FA for user
+sudo -u www-data php occ twofactorauth:enable username totp
+
+# Disable 2FA for user
+sudo -u www-data php occ twofactorauth:disable username totp
+```
+
+## Emergency Recovery
+
+<Callout type="error">
+Use these commands only in emergency situations when normal access is not possible.
+</Callout>
+
+### Stuck in Maintenance Mode
+
+If Nextcloud is stuck in maintenance mode and OCC is not responding:
+
+```bash
+# Edit config.php directly
+sudo nano /var/www/html/config/config.php
+# Change 'maintenance' => true to 'maintenance' => false
+
+# Or use sed
+sudo sed -i "s/'maintenance' => true/'maintenance' => false/" /var/www/html/config/config.php
+```
+
+### Reset Admin Password
+
+```bash
+# Reset admin password
+sudo -u www-data php occ user:resetpassword admin
+
+# Create new admin user if needed
+sudo -u www-data php occ user:add admin --group=admin
+```
+
+### Database Recovery
+
+```bash
+# Repair database
+sudo -u www-data php occ maintenance:repair
+
+# Fix database issues
+sudo -u www-data php occ db:add-missing-indices
+sudo -u www-data php occ db:add-missing-columns
+sudo -u www-data php occ db:add-missing-primary-keys
+```
+
+### File System Recovery
+
+```bash
+# Rescan all files
+sudo -u www-data php occ files:scan --all
+
+# Clean up file locks
+sudo -u www-data php occ maintenance:repair --include-expensive
+
+# Fix file permissions (run as root)
+sudo chown -R www-data:www-data /var/www/html
+sudo chmod -R 755 /var/www/html
+sudo chmod -R 770 /var/www/html/data
+```
+
+## Useful Tips
+
+### Getting Help
+
+```bash
+# List all available commands
+sudo -u www-data php occ list
+
+# Get help for specific command
+sudo -u www-data php occ user:add --help
+
+# Show command usage examples
+sudo -u www-data php occ help user:add
+```
+
+### Automation and Scripting
+
+```bash
+# Run commands in batch mode (non-interactive)
+sudo -u www-data php occ user:add newuser --password-from-env
+
+# Set environment variable for password
+export OC_PASS="secure-password"
+sudo -u www-data php occ user:add newuser --password-from-env
+
+# Use in scripts with error handling
+if sudo -u www-data php occ maintenance:mode --on; then
+    echo "Maintenance mode enabled"
+else
+    echo "Failed to enable maintenance mode"
+    exit 1
+fi
+```
+
+### Performance Monitoring
+
+```bash
+# Check system status
+sudo -u www-data php occ status
+
+# Monitor background jobs
+sudo -u www-data php occ background:job:list
+
+# Check database performance
+sudo -u www-data php occ db:add-missing-indices --dry-run
+```
+
+## Best Practices
+
+1. **Always run as web server user** (`www-data`, `apache`, or `nginx`)
+2. **Backup before major operations** (especially encryption changes)
+3. **Test commands in staging** before running in production
+4. **Monitor logs** after running maintenance commands
+5. **Use maintenance mode** during major operations
+6. **Keep regular backups** of config and data directories
+
+<Callout type="info">
+For more detailed information about specific commands, use the `--help` flag or refer to the official Nextcloud documentation.
+</Callout>
