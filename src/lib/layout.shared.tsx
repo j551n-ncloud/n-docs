@@ -23,6 +23,12 @@ export function baseOptions(): BaseLayoutProps {
       ),
     },
     // see https://fumadocs.dev/docs/ui/navigation/links
-    links: [],
+    links: [
+      {
+        text: 'Legal',
+        url: 'https://j551n.com/legal',
+        external: true,
+      },
+    ],
   };
 }
