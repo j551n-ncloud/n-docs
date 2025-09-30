@@ -31,12 +31,12 @@ export default function Layout({
     links: [
       {
         text: 'Homepage',
-        url: 'https://j551n.com/legal',
+        url: 'https://j551n.com',
         external: true,
       },
       {
         text: 'Legal',
-        url: 'https://j551n.com',
+        url: 'https://j551n.com/legal',
         external: true,
       },
     ],
