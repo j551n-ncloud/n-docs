@@ -1,0 +1,75 @@
+---
+title: CI/CD Overview
+description: Understanding Continuous Integration and Continuous Deployment practices
+---
+
+# CI/CD Overview
+
+Continuous Integration (CI) and Continuous Deployment (CD) are practices in modern software development that automate the process of building, testing, and deploying applications. They aim to reduce manual effort, increase reliability, and ensure that new features or bug fixes reach production quickly.
+
+## Key Concepts
+
+- **Continuous Integration (CI)**  
+  Developers frequently merge code changes into a shared repository. Automated builds and tests are triggered to catch issues early.
+
+- **Continuous Deployment (CD)**  
+  After passing CI checks, changes are automatically deployed to production or staging environments, reducing human error.
+
+- **Stages**  
+  CI/CD pipelines are divided into stages such as `build`, `test`, and `deploy`. Each stage can contain multiple steps or jobs.
+
+- **Automation Tools**  
+  Common CI/CD tools include GitLab CI, GitHub Actions, Jenkins, and CircleCI.
+
+## Example: GitLab CI/CD Pipeline
+
+Below is a simple GitLab CI/CD configuration that deploys a project called `n-docs` using Docker Compose.
+
+```yaml
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  script:
+    - |
+      if [ ! -d "/home/gitlab-runner/ankiweb/.git" ]; then
+        git clone https://gitlab.j551n.com/j551n/n-docs.git /home/gitlab-runner/n-docs
+      else
+        cd /home/gitlab-runner/n-docs && git pull origin main
+      fi
+    - cd /home/gitlab-runner/n-docs
+    - docker compose stop n-docs || true  # Stop the service if running
+    - docker compose up --build -d
+  only:
+    - main
+    - shared
+```
+
+### How This Works
+
+1. **Check out the repository**  
+   The pipeline first verifies if the repository exists on the runner. If it doesn't, it clones it. Otherwise, it pulls the latest changes.
+
+2. **Navigate to project folder**  
+   The script ensures all subsequent commands run in the correct directory.
+
+3. **Stop existing services**  
+   The Docker service `n-docs` is stopped if it's already running. The `|| true` ensures the pipeline doesn't fail if the service is not running.
+
+4. **Deploy with Docker Compose**  
+   The service is rebuilt and started in detached mode.
+
+5. **Trigger conditions**  
+   This job runs only for commits to the `main` and `shared` branches.
+
+### Benefits
+
+- Automates deployment, reducing manual errors.
+- Ensures the application is always up-to-date with the latest changes.
+- Provides a repeatable and reliable deployment process.
+
+### Further Reading
+
+- [GitLab CI/CD Documentation](https://docs.gitlab.com/ee/ci/)
+- [Docker Compose](https://docs.docker.com/compose/)

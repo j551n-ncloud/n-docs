@@ -1,0 +1,7 @@
+{
+  "title": "CI/CD",
+  "description": "Continuous Integration and Continuous Deployment practices",
+  "pages": [
+    "cicd-overview"
+  ]
+}
