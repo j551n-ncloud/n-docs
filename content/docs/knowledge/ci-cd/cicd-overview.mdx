@@ -33,13 +33,15 @@ deploy:
   stage: deploy
   script:
     - |
-      if [ ! -d "/home/gitlab-runner/ankiweb/.git" ]; then
+      if [ ! -d "/home/gitlab-runner/n-docs/.git" ]; then
         git clone https://gitlab.j551n.com/j551n/n-docs.git /home/gitlab-runner/n-docs
       else
-        cd /home/gitlab-runner/n-docs && git pull origin main
+        cd /home/gitlab-runner/n-docs
+        git fetch origin
+        git reset --hard origin/main
       fi
     - cd /home/gitlab-runner/n-docs
-    - docker compose stop n-docs || true  # Stop the service if running
+    - docker compose stop n-docs || true
     - docker compose up --build -d
   only:
     - main
@@ -49,7 +51,7 @@ deploy:
 ### How This Works
 
 1. **Check out the repository**  
-   The pipeline first verifies if the repository exists on the runner. If it doesn't, it clones it. Otherwise, it pulls the latest changes.
+   The pipeline first verifies if the repository exists on the runner. If it doesn't, it clones it. Otherwise, it fetches the latest changes and performs a hard reset to match the remote branch exactly.
 
 2. **Navigate to project folder**  
    The script ensures all subsequent commands run in the correct directory.
